@@ -230,11 +230,11 @@ public static class ApplicationExtensions
                 // 情報の書き換え
                 operation.Summary = "サマリ";
                 operation.Description = "Custom operation description";
-                operation.Responses ??= new OpenApiResponses();
+                operation.Responses ??= [];
                 operation.Responses["200"].Description = "成功";
 
                 // ヘッダパラメータの追加
-                operation.Parameters ??= new List<IOpenApiParameter>();
+                operation.Parameters ??= [];
                 operation.Parameters.Add(new OpenApiParameter
                 {
                     Name = "X-Correlation-ID",
