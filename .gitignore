@@ -417,8 +417,6 @@ FodyWeavers.xsd
 *.msm
 *.msp
 
-# Customize
+# Custom
 desktop.ini
 __*
-/Publish/
-/Log/
