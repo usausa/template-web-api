@@ -60,9 +60,9 @@ public static class ApplicationExtensions
     public static IHostApplicationBuilder ConfigureHost(this WebApplicationBuilder builder)
     {
         // Service
-        builder.Host
-            .UseWindowsService()
-            .UseSystemd();
+        builder.Services
+            .AddWindowsService()
+            .AddSystemd();
 
         // Feature management
         builder.Services.AddFeatureManagement();
