@@ -25,11 +25,14 @@ builder.ConfigureLogging();
 builder.ConfigureHttp();
 // API
 builder.ConfigureApi();
+// Authentication
+builder.ConfigureAuthentication();
+// Rate limit
+builder.ConfigureRateLimiter();
 // Compress
 builder.ConfigureCompression();
-// TODO
-//// Swagger
-//builder.ConfigureSwagger();
+// OpenApi
+builder.ConfigureOpenApi();
 
 // Health
 builder.ConfigureHealth();
@@ -47,26 +50,27 @@ var app = builder.Build();
 // Startup information
 app.LogStartupInformation();
 
-// TODO
-// Logging
-//app.UseLogging();
-//app.UseLoggingContext();
-
-// TODO order
-
-// TODO
-//// Forwarded headers
-//app.UseForwardedHeaders();
-
-// TODO
-//// Buffered response
-//app.UseBufferedResponse();
+// Forwarded headers
+app.UseForwardedHeaders();
 
 // Error handler
 app.UseErrorHandler();
 
 // Compression
 app.UseCompression();
+
+// Logging
+app.UseLogging();
+
+// Rate limit
+app.UseRateLimiter();
+
+// Authentication
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Logging context
+app.UseLoggingContext();
 
 // End point
 app.MapEndpoints();
@@ -76,3 +80,8 @@ await app.InitializeApplicationAsync();
 
 // Run
 await app.RunAsync();
+
+[ExcludeFromCodeCoverage]
+public partial class Program
+{
+}

@@ -3,7 +3,6 @@ namespace Template.ApiServer.Host.Infrastructure.Logging;
 using Serilog.Core;
 using Serilog.Events;
 
-// TODO
 public sealed class CallbackEnricher : ILogEventEnricher
 {
     private readonly string name;

@@ -1,17 +1,24 @@
 namespace Template.ApiServer.Host.Application;
 
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Encodings.Web;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using System.Text.Unicode;
+using System.Threading.RateLimiting;
 
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.FeatureManagement;
-using Microsoft.OpenApi;
+using Microsoft.IdentityModel.Tokens;
 
 using MiniDataProfiler;
 using MiniDataProfiler.Listener.Logging;
@@ -28,15 +35,17 @@ using Smart.Data;
 using Smart.Data.Accessor.Extensions.DependencyInjection;
 
 using Template.ApiServer.Host.Application.Telemetry;
-using Template.ApiServer.Host.Settings;
+using Template.ApiServer.Host.Endpoints;
+using Template.ApiServer.Host.Infrastructure.Authentication;
+using Template.ApiServer.Host.Infrastructure.ExceptionHandling;
+using Template.ApiServer.Host.Infrastructure.HealthChecks;
+using Template.ApiServer.Host.Infrastructure.Logging;
+using Template.ApiServer.Infrastructure.Storage;
 
 public static class ApplicationExtensions
 {
     private const string HealthEndpointPath = "/health";
     private const string AlivenessEndpointPath = "/alive";
-
-    // TODO
-    //private const string MetricsEndpointPath = "/metrics";
 
     //--------------------------------------------------------------------------------
     // System
@@ -80,9 +89,46 @@ public static class ApplicationExtensions
 
         // Application log
         builder.Logging.ClearProviders();
-        builder.Services.AddSerilog(options => options.ReadFrom.Configuration(builder.Configuration), writeToProviders: useOtlpExporter);
+        builder.Services.AddSerilog(
+            options =>
+            {
+                options.ReadFrom.Configuration(builder.Configuration);
+                options.Enrich.With(new CallbackEnricher("UserId", static () => LoggingContext.UserId));
+            },
+            writeToProviders: useOtlpExporter);
+
+        // HTTP log
+        builder.Services.AddHttpLogging(static options =>
+        {
+            options.LoggingFields = HttpLoggingFields.RequestMethod |
+                                    HttpLoggingFields.RequestPath |
+                                    HttpLoggingFields.ResponseStatusCode |
+                                    HttpLoggingFields.Duration;
+        });
 
         return builder;
+    }
+
+    public static WebApplication UseLogging(this WebApplication app)
+    {
+        var setting = app.Services.GetRequiredService<LogSetting>();
+        if (setting.HttpLog)
+        {
+            app.UseHttpLogging();
+        }
+
+        return app;
+    }
+
+    public static WebApplication UseLoggingContext(this WebApplication app)
+    {
+        app.Use(static (context, next) =>
+        {
+            LoggingContext.UserId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return next(context);
+        });
+
+        return app;
     }
 
     //--------------------------------------------------------------------------------
@@ -106,7 +152,6 @@ public static class ApplicationExtensions
             options.AppendTrailingSlash = true;
         });
 
-        // TODO
         // XForward
         builder.Services.Configure<ForwardedHeadersOptions>(static options =>
         {
@@ -126,32 +171,27 @@ public static class ApplicationExtensions
 
     public static IHostApplicationBuilder ConfigureApi(this IHostApplicationBuilder builder)
     {
-        // TODO Filter
+        // JSON
+        builder.Services.ConfigureHttpJsonOptions(static options =>
+        {
+            options.SerializerOptions.PropertyNamingPolicy = NamingPolicy.JsonPropertyNaming;
+            options.SerializerOptions.DictionaryKeyPolicy = NamingPolicy.JsonDictionaryKeyNaming;
+            options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+            options.SerializerOptions.Encoder = JavaScriptEncoder.Create(UnicodeRanges.All);
+        });
 
-        // TODO
-        builder.Services
-            .AddControllers(options =>
-            {
-                options.Conventions.Add(NamingPolicy.PathNaming);
-            })
-            //.ConfigureApiBehaviorOptions(static options =>
-            //{
-            //})
-            .AddJsonOptions(static options =>
-            {
-                options.AllowInputFormatterExceptionMessages = false;
-                options.JsonSerializerOptions.PropertyNamingPolicy = NamingPolicy.JsonPropertyNaming;
-                options.JsonSerializerOptions.DictionaryKeyPolicy = NamingPolicy.JsonDictionaryKeyNaming;
-                options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-                options.JsonSerializerOptions.Encoder = JavaScriptEncoder.Create(UnicodeRanges.All);
-            });
+        // Validation
+        builder.Services.AddValidation();
 
-        // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-        builder.Services.AddOpenApi();
-
-        // TODO
         // Error handler
-        builder.Services.AddProblemDetails();
+        builder.Services.AddProblemDetails(static options =>
+        {
+            options.CustomizeProblemDetails = static context =>
+            {
+                context.ProblemDetails.Extensions.TryAdd("traceId", Activity.Current?.Id ?? context.HttpContext.TraceIdentifier);
+            };
+        });
+        builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
         return builder;
     }
@@ -165,18 +205,114 @@ public static class ApplicationExtensions
     }
 
     //--------------------------------------------------------------------------------
+    // Authentication
+    //--------------------------------------------------------------------------------
+
+    public static IHostApplicationBuilder ConfigureAuthentication(this IHostApplicationBuilder builder)
+    {
+        var setting = builder.Configuration.GetSection("Auth").Get<AuthSetting>()!;
+
+        builder.Services
+            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = setting.Issuer,
+                    ValidateAudience = true,
+                    ValidAudience = setting.Audience,
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(setting.SecretKey)),
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.FromSeconds(30)
+                };
+            })
+            .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationOptions.SchemeName, options =>
+            {
+                options.ApiKey = setting.ApiKey;
+            });
+
+        builder.Services.AddAuthorization(static options =>
+        {
+            options.AddPolicy(Policies.Administrator, static policy => policy.RequireRole(Roles.Administrator));
+
+            options.DefaultPolicy = new AuthorizationPolicyBuilder(JwtBearerDefaults.AuthenticationScheme, ApiKeyAuthenticationOptions.SchemeName)
+                .RequireAuthenticatedUser()
+                .Build();
+        });
+
+        return builder;
+    }
+
+    //--------------------------------------------------------------------------------
+    // Rate limit
+    //--------------------------------------------------------------------------------
+
+    public static IHostApplicationBuilder ConfigureRateLimiter(this IHostApplicationBuilder builder)
+    {
+        var setting = builder.Configuration.GetSection("Limit").Get<LimitSetting>()!;
+
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.OnRejected = static async (context, cancellationToken) =>
+            {
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                {
+                    context.HttpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString(CultureInfo.InvariantCulture);
+                }
+
+                context.HttpContext.Response.ContentType = "application/problem+json";
+                await context.HttpContext.Response.WriteAsJsonAsync(
+                    new ProblemDetails { Status = StatusCodes.Status429TooManyRequests, Title = "Too many requests." },
+                    cancellationToken);
+            };
+
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        Window = TimeSpan.FromSeconds(setting.Global.Window),
+                        PermitLimit = setting.Global.PermitLimit,
+                        QueueLimit = setting.Global.QueueLimit
+                    }));
+
+            options.AddPolicy(RateLimitPolicies.Auth, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        Window = TimeSpan.FromSeconds(setting.Auth.Window),
+                        PermitLimit = setting.Auth.PermitLimit,
+                        QueueLimit = setting.Auth.QueueLimit
+                    }));
+        });
+
+        return builder;
+    }
+
+    //--------------------------------------------------------------------------------
     // Compress
     //--------------------------------------------------------------------------------
 
     public static IHostApplicationBuilder ConfigureCompression(this IHostApplicationBuilder builder)
     {
-        // TODO
+        builder.Services.AddResponseCompression(static options =>
+        {
+            options.EnableForHttps = true;
+            options.Providers.Add<BrotliCompressionProvider>();
+            options.Providers.Add<GzipCompressionProvider>();
+        });
+
         return builder;
     }
 
     public static WebApplication UseCompression(this WebApplication app)
     {
-        // TODO
+        app.UseResponseCompression();
+
         return app;
     }
 
@@ -186,67 +322,16 @@ public static class ApplicationExtensions
 
     public static IHostApplicationBuilder ConfigureOpenApi(this IHostApplicationBuilder builder)
     {
-        // TODO
-        // ReSharper disable UnusedParameter.Local
-        builder.Services.AddOpenApi(options =>
+        builder.Services.AddOpenApi(static options =>
         {
-            // TODO
-            options.AddDocumentTransformer((document, context, cancellationToken) =>
+            options.AddDocumentTransformer(static (document, context, cancellationToken) =>
             {
-                // ドキュメント情報の設定
-                document.Info.Title = "My API";
+                document.Info.Title = "Template API";
                 document.Info.Version = "v1";
-                document.Info.Description = "説明をここに書く";
-                document.Info.Contact = new OpenApiContact
-                {
-                    Name = "Team",
-                    Email = "team@example.com"
-                };
-                document.Servers!.Add(new OpenApiServer
-                {
-                    Url = "https://api.example.com",
-                    Description = "Production"
-                });
-
-                // 認証スキームの追加例
-                //var bearerScheme = new OpenApiSecurityScheme
-                //{
-                //    Type = SecuritySchemeType.Http,
-                //    Scheme = "bearer",
-                //    BearerFormat = "JWT",
-                //    Description = "JWT Authorization header using the Bearer scheme."
-                //};
-                //document.Components.SecuritySchemes["Bearer"] = bearerScheme;
-                //...
-
-                return Task.CompletedTask;
-            });
-
-            options.AddOperationTransformer((operation, context, cancellationToken) =>
-            {
-                operation.Description = "Custom operation description";
-
-                // context.ApiDescriptionからController情報が取れるのでそれを使用する
-                // 情報の書き換え
-                operation.Summary = "サマリ";
-                operation.Description = "Custom operation description";
-                operation.Responses ??= [];
-                operation.Responses["200"].Description = "成功";
-
-                // ヘッダパラメータの追加
-                operation.Parameters ??= [];
-                operation.Parameters.Add(new OpenApiParameter
-                {
-                    Name = "X-Correlation-ID",
-                    In = ParameterLocation.Header,
-                    Required = false,
-                    Description = "トレース用"
-                });
-
+                document.Info.Description = "Template API server.";
                 return Task.CompletedTask;
             });
         });
-        // ReSharper restore UnusedParameter.Local
 
         return builder;
     }
@@ -259,7 +344,8 @@ public static class ApplicationExtensions
     {
         builder.Services
             .AddHealthChecks()
-            .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
+            .AddCheck("self", static () => HealthCheckResult.Healthy(), ["live"])
+            .AddCheck<DatabaseHealthCheck>("database");
 
         return builder;
     }
@@ -334,26 +420,23 @@ public static class ApplicationExtensions
                 {
                     tracing
                         .AddSource(builder.Environment.ApplicationName)
-                        .AddAspNetCoreInstrumentation()
+                        .AddAspNetCoreInstrumentation(static options =>
+                        {
+                            options.Filter = static context =>
+                            {
+                                var path = context.Request.Path;
+                                return !path.StartsWithSegments(AlivenessEndpointPath, StringComparison.OrdinalIgnoreCase) &&
+                                       !path.StartsWithSegments(HealthEndpointPath, StringComparison.OrdinalIgnoreCase) &&
+                                       !path.StartsWithSegments("/openapi", StringComparison.OrdinalIgnoreCase) &&
+                                       !path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase);
+                            };
+                        })
                         .AddGrpcClientInstrumentation()
                         .AddHttpClientInstrumentation()
                         .AddMiniDataProfilerInstrumentation()
                         .AddApplicationInstrumentation();
 
                     tracing.AddOtlpExporter();
-
-                    // TODO swagger condition
-                    tracing
-                        .AddAspNetCoreInstrumentation(options =>
-                        {
-                            options.Filter = context =>
-                            {
-                                var path = context.Request.Path;
-                                return !path.StartsWithSegments(AlivenessEndpointPath, StringComparison.OrdinalIgnoreCase) &&
-                                       !path.StartsWithSegments(HealthEndpointPath, StringComparison.OrdinalIgnoreCase) &&
-                                       !path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase);
-                            };
-                        });
                 });
         }
 
@@ -389,20 +472,38 @@ public static class ApplicationExtensions
 
             return new DelegateDbProvider(() => new SqliteConnection(connectionString));
         });
-
-        // TODO Dialect
-
-        // TODO option
+        builder.Services.AddSingleton<IDialect>(new DelegateDialect(
+            static ex => ex is SqliteException { SqliteErrorCode: 19 } or SqliteException { SqliteExtendedErrorCode: 1555 or 2067 },
+            static x => Regex.Replace(x, "[%_]", "[$0]")));
         builder.Services.AddDataAccessor();
 
         // Cache
         builder.Services.AddMemoryCache();
 
+        // Storage
+        builder.Services.AddOptions<FileStorageOptions>().BindConfiguration("Storage").ValidateDataAnnotations().ValidateOnStart();
+        builder.Services.AddSingleton(static p => p.GetRequiredService<IOptions<FileStorageOptions>>().Value);
+        builder.Services.AddSingleton<IStorage, FileStorage>();
+
+        // Authentication
+        builder.Services.AddSingleton<TokenService>();
+        builder.Services.AddSingleton<ILoginProvider, DefaultLoginProvider>();
+
+        // Service
+        builder.Services.AddSingleton<DataService>();
+
+        // Usecase
+        builder.Services.AddSingleton<DataUsecase>();
+
         // Setting
-        builder.Services.Configure<ProfilerSetting>(builder.Configuration.GetSection("Profiler"));
-        builder.Services.AddSingleton<ProfilerSetting>(static p => p.GetRequiredService<IOptions<ProfilerSetting>>().Value);
-        builder.Services.Configure<ServerSetting>(builder.Configuration.GetSection("Server"));
-        builder.Services.AddSingleton<ServerSetting>(static p => p.GetRequiredService<IOptions<ServerSetting>>().Value);
+        builder.Services.AddOptions<ProfilerSetting>().BindConfiguration("Profiler").ValidateDataAnnotations().ValidateOnStart();
+        builder.Services.AddSingleton(static p => p.GetRequiredService<IOptions<ProfilerSetting>>().Value);
+        builder.Services.AddOptions<LogSetting>().BindConfiguration("Log").ValidateDataAnnotations().ValidateOnStart();
+        builder.Services.AddSingleton(static p => p.GetRequiredService<IOptions<LogSetting>>().Value);
+        builder.Services.AddOptions<LimitSetting>().BindConfiguration("Limit").ValidateDataAnnotations().ValidateOnStart();
+        builder.Services.AddSingleton(static p => p.GetRequiredService<IOptions<LimitSetting>>().Value);
+        builder.Services.AddOptions<AuthSetting>().BindConfiguration("Auth").ValidateDataAnnotations().ValidateOnStart();
+        builder.Services.AddSingleton(static p => p.GetRequiredService<IOptions<AuthSetting>>().Value);
 
         return builder;
     }
@@ -418,24 +519,15 @@ public static class ApplicationExtensions
         var prometheusSection = app.Configuration.GetSection("Prometheus");
         var prometheusUri = prometheusSection.GetValue("Uri", string.Empty);
 
+        var limitSetting = app.Services.GetRequiredService<LimitSetting>();
+
         app.Logger.InfoServiceStart();
         app.Logger.InfoServiceSettingsRuntime(RuntimeInformation.OSDescription, RuntimeInformation.FrameworkDescription, RuntimeInformation.RuntimeIdentifier);
         app.Logger.InfoServiceSettingsEnvironment(typeof(Program).Assembly.GetName().Version, Environment.CurrentDirectory);
         app.Logger.InfoServiceSettingsGC(GCSettings.IsServerGC, GCSettings.LatencyMode, GCSettings.LargeObjectHeapCompactionMode);
         app.Logger.InfoServiceSettingsThreadPool(workerThreads, completionPortThreads);
+        app.Logger.InfoServiceSettingsRateLimit(limitSetting.Global.Window, limitSetting.Global.PermitLimit, limitSetting.Global.QueueLimit);
         app.Logger.InfoServiceSettingsTelemetry(app.Configuration.GetOtelExporterEndpoint(), prometheusUri);
-    }
-
-    //--------------------------------------------------------------------------------
-    // Middleware
-    //--------------------------------------------------------------------------------
-
-    public static WebApplication UseMiddlewares(this WebApplication app)
-    {
-        // TODO Auth
-        app.UseAuthorization();
-
-        return app;
     }
 
     //--------------------------------------------------------------------------------
@@ -444,32 +536,32 @@ public static class ApplicationExtensions
 
     public static WebApplication MapEndpoints(this WebApplication app)
     {
-        // Configure the HTTP request pipeline.
+        // Develop
         if (app.Environment.IsDevelopment())
         {
-            // TODO
             app.MapOpenApi();
             // [MEMO] Add yaml support
             app.MapOpenApi("/openapi/{documentName}.yaml");
 
             // Enable Swagger UI to use MapOpenApi generated specification
-            app.UseSwaggerUI(options =>
+            app.UseSwaggerUI(static options =>
             {
-                options.SwaggerEndpoint("/openapi/v1.json", "My API v1");
+                options.SwaggerEndpoint("/openapi/v1.json", "Template API v1");
             });
         }
 
-        // TODO Route
-
-        // Controller
-        app.MapControllers();
+        // API
+        app.MapAuthEndpoints();
+        app.MapDataEndpoints();
+        app.MapFileEndpoints();
+        app.MapTestEndpoints();
 
         // Health
-        app.MapHealthChecks(HealthEndpointPath);
+        app.MapHealthChecks(HealthEndpointPath).DisableRateLimiting();
         app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
         {
-            Predicate = r => r.Tags.Contains("live")
-        });
+            Predicate = static r => r.Tags.Contains("live")
+        }).DisableRateLimiting();
 
         return app;
     }
@@ -483,7 +575,9 @@ public static class ApplicationExtensions
         // Prepare instrument
         app.Services.GetRequiredService<ApplicationInstrument>();
 
-        // TODO data initialize
+        // Prepare database
+        app.Services.GetRequiredService<DataService>().CreateTable();
+
         return ValueTask.CompletedTask;
     }
 

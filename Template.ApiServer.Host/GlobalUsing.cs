@@ -23,17 +23,13 @@ global using System.Threading.Tasks;
 
 global using Microsoft.AspNetCore.Authentication;
 global using Microsoft.AspNetCore.Authorization;
-global using Microsoft.AspNetCore.Components;
-global using Microsoft.AspNetCore.Components.Authorization;
-global using Microsoft.AspNetCore.Components.Web;
 global using Microsoft.AspNetCore.Http;
+global using Microsoft.AspNetCore.Http.HttpResults;
 global using Microsoft.AspNetCore.Mvc;
 
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
-
-global using Microsoft.JSInterop;
 
 global using Smart;
 global using Smart.Collections.Generic;
@@ -42,9 +38,11 @@ global using Smart.IO;
 global using Smart.Linq;
 global using Smart.Text;
 
-// TODO
 // ReSharper disable MissingBlankLines
 global using Template.ApiServer;
-//global using Template.ApiServer.Models;
-//global using Template.ApiServer.Services;
-//global using Template.ApiServer.Host.Application;
+global using Template.ApiServer.Models;
+global using Template.ApiServer.Models.Entity;
+global using Template.ApiServer.Services;
+global using Template.ApiServer.Usecase;
+global using Template.ApiServer.Host.Application;
+global using Template.ApiServer.Host.Settings;
