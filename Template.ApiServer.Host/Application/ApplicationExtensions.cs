@@ -12,7 +12,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Data.Sqlite;
@@ -328,7 +327,7 @@ public static class ApplicationExtensions
     {
         builder.Services.AddOpenApi(static options =>
         {
-            options.AddDocumentTransformer(static (document, context, cancellationToken) =>
+            options.AddDocumentTransformer(static (document, _, _) =>
             {
                 document.Info.Title = "Template API";
                 document.Info.Version = "v1";

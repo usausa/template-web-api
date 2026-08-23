@@ -1,5 +1,7 @@
 namespace Template.ApiServer.Host.Endpoints;
 
+using Microsoft.FeatureManagement;
+
 using Template.ApiServer.Host.Application;
 using Template.ApiServer.Host.Infrastructure.Filters;
 using Template.ApiServer.Host.Models.Test;
@@ -15,6 +17,7 @@ public static class TestEndpoints
         var group = app.MapGroup(ApiRoutes.Test);
 
         group.MapGet("/time", HandleTime);
+        group.MapGet("/feature", HandleFeatureAsync);
         group.MapGet("/error", HandleError);
         group.MapGet("/me", HandleMe)
             .RequireAuthorization()
@@ -27,6 +30,9 @@ public static class TestEndpoints
 
     private static Ok<TimeResponse> HandleTime(TimeProvider timeProvider) =>
         TypedResults.Ok(new TimeResponse(timeProvider.GetLocalNow()));
+
+    private static async ValueTask<Ok<FeatureResponse>> HandleFeatureAsync(IFeatureManager featureManager) =>
+        TypedResults.Ok(new FeatureResponse(await featureManager.IsEnabledAsync(FeatureFlags.CustomOption)));
 
     private static IResult HandleError() =>
         throw new InvalidOperationException("Test exception.");

@@ -13,9 +13,9 @@ public sealed class DataServiceTest
     public async Task CountAsyncReturnsScalar()
     {
         // Arrange
-        using var con = new MockDbConnection();
+        await using var con = new MockDbConnection();
         con.SetupCommand(static cmd => cmd.SetupResult(3));
-        using var provider = CreateProvider(con);
+        await using var provider = CreateProvider(con);
         var service = provider.GetRequiredService<DataService>();
 
         // Act
@@ -29,9 +29,9 @@ public sealed class DataServiceTest
     public async Task UpdateAsyncWithoutAffectedRowsReturnsNotFound()
     {
         // Arrange
-        using var con = new MockDbConnection();
+        await using var con = new MockDbConnection();
         con.SetupCommand(static cmd => cmd.SetupResult(0));
-        using var provider = CreateProvider(con);
+        await using var provider = CreateProvider(con);
         var service = provider.GetRequiredService<DataService>();
 
         // Act

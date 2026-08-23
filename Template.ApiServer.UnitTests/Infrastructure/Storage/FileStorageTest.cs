@@ -28,7 +28,7 @@ public sealed class FileStorageTest : IDisposable
     public async Task WriteAndReadRoundtrip()
     {
         // Arrange
-        var content = Encoding.UTF8.GetBytes("test content");
+        var content = "test content"u8.ToArray();
 
         // Act
         using (var input = new MemoryStream(content))
