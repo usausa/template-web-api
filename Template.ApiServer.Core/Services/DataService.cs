@@ -7,17 +7,17 @@ public sealed class DataService
 {
     private readonly IDialect dialect;
 
-    private readonly IDataAccessor dataAccessor;
+    private readonly DataAccessor dataAccessor;
 
     private readonly TimeProvider timeProvider;
 
     public DataService(
         IDialect dialect,
-        IAccessorResolver<IDataAccessor> dataAccessor,
+        DataAccessor dataAccessor,
         TimeProvider timeProvider)
     {
         this.dialect = dialect;
-        this.dataAccessor = dataAccessor.Accessor;
+        this.dataAccessor = dataAccessor;
         this.timeProvider = timeProvider;
     }
 

@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.FeatureManagement;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
 using MiniDataProfiler;
@@ -32,8 +33,8 @@ using OpenTelemetry.Trace;
 using Serilog;
 
 using Smart.Data;
-using Smart.Data.Accessor.Extensions.DependencyInjection;
 
+using Template.ApiServer.Accessors;
 using Template.ApiServer.Host.Application.Telemetry;
 using Template.ApiServer.Host.Endpoints;
 using Template.ApiServer.Host.Infrastructure.Authentication;
@@ -124,7 +125,7 @@ public static class ApplicationExtensions
     {
         app.Use(static (context, next) =>
         {
-            LoggingContext.UserId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            LoggingContext.UserId = context.User.Identity?.Name;
             return next(context);
         });
 
@@ -216,6 +217,7 @@ public static class ApplicationExtensions
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
+                options.MapInboundClaims = false;
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
@@ -225,6 +227,8 @@ public static class ApplicationExtensions
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(setting.SecretKey)),
                     ValidateLifetime = true,
+                    NameClaimType = JwtRegisteredClaimNames.Sub,
+                    RoleClaimType = "role",
                     ClockSkew = TimeSpan.FromSeconds(30)
                 };
             })
@@ -461,12 +465,9 @@ public static class ApplicationExtensions
             var configuration = p.GetRequiredService<IConfiguration>();
             var connectionString = configuration.GetConnectionString("Default");
 
-            var settings = p.GetRequiredService<ProfilerSetting>();
-            if (settings.SqlTrace)
+            var listener = CreateProfileListener(p, p.GetRequiredService<ProfilerSetting>());
+            if (listener is not null)
             {
-                var logListener = new LoggingListener(p.GetRequiredService<ILogger<LoggingListener>>(), new LoggingListenerOption());
-                var telemetryListener = new OpenTelemetryListener(new OpenTelemetryListenerOption());
-                var listener = new ChainListener(logListener, telemetryListener);
                 return new DelegateDbProvider(() => new ProfileDbConnection(listener, new SqliteConnection(connectionString)));
             }
 
@@ -475,7 +476,7 @@ public static class ApplicationExtensions
         builder.Services.AddSingleton<IDialect>(new DelegateDialect(
             static ex => ex is SqliteException { SqliteErrorCode: 19 } or SqliteException { SqliteExtendedErrorCode: 1555 or 2067 },
             static x => Regex.Replace(x, "[%_]", "[$0]")));
-        builder.Services.AddDataAccessor();
+        builder.Services.AddDataAccessors(typeof(DataAccessor).Assembly);
 
         // Cache
         builder.Services.AddMemoryCache();
@@ -489,11 +490,8 @@ public static class ApplicationExtensions
         builder.Services.AddSingleton<TokenService>();
         builder.Services.AddSingleton<ILoginProvider, DefaultLoginProvider>();
 
-        // Service
-        builder.Services.AddSingleton<DataService>();
-
-        // Usecase
-        builder.Services.AddSingleton<DataUsecase>();
+        // Service & Usecase
+        builder.Services.AddCoreServices();
 
         // Setting
         builder.Services.AddOptions<ProfilerSetting>().BindConfiguration("Profiler").ValidateDataAnnotations().ValidateOnStart();
@@ -528,6 +526,7 @@ public static class ApplicationExtensions
         app.Logger.InfoServiceSettingsThreadPool(workerThreads, completionPortThreads);
         app.Logger.InfoServiceSettingsRateLimit(limitSetting.Global.Window, limitSetting.Global.PermitLimit, limitSetting.Global.QueueLimit);
         app.Logger.InfoServiceSettingsTelemetry(app.Configuration.GetOtelExporterEndpoint(), prometheusUri);
+        app.Logger.InfoServiceSettingsAuth(app.Services.GetRequiredService<AuthSetting>());
     }
 
     //--------------------------------------------------------------------------------
@@ -543,10 +542,15 @@ public static class ApplicationExtensions
             // [MEMO] Add yaml support
             app.MapOpenApi("/openapi/{documentName}.yaml");
 
-            // Enable Swagger UI to use MapOpenApi generated specification
-            app.UseSwaggerUI(static options =>
+            // NSwag UI (SwaggerUI / ReDoc) using MapOpenApi generated specification
+            app.UseSwaggerUi(static options =>
             {
-                options.SwaggerEndpoint("/openapi/v1.json", "Template API v1");
+                options.DocumentPath = "/openapi/v1.json";
+            });
+            app.UseReDoc(static options =>
+            {
+                options.Path = "/redoc";
+                options.DocumentPath = "/openapi/v1.json";
             });
         }
 
@@ -587,6 +591,37 @@ public static class ApplicationExtensions
 
     private static bool IsOtelExporterEnabled(this IConfiguration configuration) =>
         !String.IsNullOrWhiteSpace(configuration.GetOtelExporterEndpoint());
+
+    //--------------------------------------------------------------------------------
+    // Profiler
+    //--------------------------------------------------------------------------------
+
+    // SQLトレースをログ/テレメトリそれぞれの設定で有効化する
+    private static IProfileListener? CreateProfileListener(IServiceProvider provider, ProfilerSetting setting)
+    {
+        var listeners = new List<IProfileListener>();
+        if (setting.SqlLog.Enable)
+        {
+            var option = new LoggingListenerOption
+            {
+                OutputParameter = setting.SqlLog.OutputParameter,
+                ElapsedThreshold = TimeSpan.FromMilliseconds(setting.SqlLog.ElapsedThresholdMilliseconds)
+            };
+            listeners.Add(new LoggingListener(provider.GetRequiredService<ILogger<LoggingListener>>(), option));
+        }
+
+        if (setting.SqlTelemetry.Enable)
+        {
+            listeners.Add(new OpenTelemetryListener(new OpenTelemetryListenerOption()));
+        }
+
+        return listeners.Count switch
+        {
+            0 => null,
+            1 => listeners[0],
+            _ => new ChainListener([.. listeners])
+        };
+    }
 
     private static string GetOtelExporterEndpoint(this IConfiguration configuration) =>
         configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? string.Empty;

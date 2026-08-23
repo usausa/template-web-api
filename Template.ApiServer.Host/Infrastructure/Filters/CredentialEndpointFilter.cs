@@ -6,11 +6,11 @@ public sealed class CredentialEndpointFilter : IEndpointFilter
 {
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
-        var user = context.HttpContext.User;
-        if (user.Identity?.IsAuthenticated ?? false)
+        // スキームごとにクレーム型が異なるため、ロールはIdentityのRoleClaimTypeで解決する
+        if (context.HttpContext.User is { Identity: ClaimsIdentity { IsAuthenticated: true } identity } user)
         {
-            var id = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.Identity.Name ?? string.Empty;
-            var roles = user.FindAll(ClaimTypes.Role).Select(static x => x.Value).ToArray();
+            var id = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? identity.Name ?? string.Empty;
+            var roles = user.FindAll(identity.RoleClaimType).Select(static x => x.Value).ToArray();
             CredentialContext.Current = new Credential(id, roles);
         }
 

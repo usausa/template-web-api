@@ -1,9 +1,14 @@
 namespace Template.ApiServer.Host.Settings;
 
-public sealed class AuthSetting
+using BunnyTail.CommonCode;
+
+// 起動時ログへ設定内容を出力するため、シークレットをマスクしたToStringを生成する
+[GenerateToString]
+public sealed partial class AuthSetting
 {
     [Required]
     [MinLength(32)]
+    [ToStringFormat(MaskChar = '*')]
     public string SecretKey { get; set; } = default!;
 
     [Required]
@@ -16,14 +21,17 @@ public sealed class AuthSetting
     public int ExpireMinutes { get; set; }
 
     [Required]
+    [ToStringFormat(MaskChar = '*')]
     public string ApiKey { get; set; } = default!;
 
     public List<UserEntry> Users { get; } = [];
 
-    public sealed class UserEntry
+    [GenerateToString]
+    public sealed partial class UserEntry
     {
         public string Id { get; set; } = default!;
 
+        [ToStringFormat(MaskChar = '*')]
         public string Password { get; set; } = default!;
 
         public List<string> Roles { get; } = [];

@@ -6,11 +6,16 @@
     <Project Path="Template.ApiServer.Core/Template.ApiServer.Core.csproj" />
     <Project Path="Template.ApiServer.Host/Template.ApiServer.Host.csproj" />
   </Folder>
+  <Folder Name="/Test/">
+    <Project Path="Template.ApiServer.UnitTests/Template.ApiServer.UnitTests.csproj" />
+    <Project Path="Template.ApiServer.IntegrationTests/Template.ApiServer.IntegrationTests.csproj" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
     <File Path=".gitattributes" />
     <File Path=".gitignore" />
     <File Path="Analyzers.ruleset" />
+    <File Path="CodeCoverage.runsettings" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Build.targets" />
     <File Path="LICENSE" />

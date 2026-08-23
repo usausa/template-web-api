@@ -1,13 +1,14 @@
 namespace Template.ApiServer.Host.Infrastructure.Authentication;
 
-using System.IdentityModel.Tokens.Jwt;
-
+using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
 using Template.ApiServer.Host.Settings;
 
 public sealed class TokenService
 {
+    private static readonly JsonWebTokenHandler Handler = new();
+
     private readonly AuthSetting setting;
 
     private readonly TimeProvider timeProvider;
@@ -26,17 +27,22 @@ public sealed class TokenService
         var now = timeProvider.GetUtcNow();
         var expireAt = now.AddMinutes(setting.ExpireMinutes);
 
-        var claims = new List<Claim> { new(JwtRegisteredClaimNames.Sub, id) };
-        claims.AddRange(roles.Select(static x => new Claim(ClaimTypes.Role, x)));
+        var descriptor = new SecurityTokenDescriptor
+        {
+            Issuer = setting.Issuer,
+            Audience = setting.Audience,
+            IssuedAt = now.UtcDateTime,
+            NotBefore = now.UtcDateTime,
+            Expires = expireAt.UtcDateTime,
+            Claims = new Dictionary<string, object>
+            {
+                [JwtRegisteredClaimNames.Sub] = id,
+                [JwtRegisteredClaimNames.Jti] = Guid.NewGuid().ToString("N"),
+                ["role"] = roles
+            },
+            SigningCredentials = credentials
+        };
 
-        var token = new JwtSecurityToken(
-            issuer: setting.Issuer,
-            audience: setting.Audience,
-            claims: claims,
-            notBefore: now.UtcDateTime,
-            expires: expireAt.UtcDateTime,
-            signingCredentials: credentials);
-
-        return (new JwtSecurityTokenHandler().WriteToken(token), expireAt);
+        return (Handler.CreateToken(descriptor), expireAt);
     }
 }

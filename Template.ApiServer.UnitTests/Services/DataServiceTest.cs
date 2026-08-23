@@ -1,0 +1,54 @@
+namespace Template.ApiServer.Services;
+
+using Microsoft.Extensions.DependencyInjection;
+
+using Smart.Data;
+using Smart.Mock.Data;
+
+using Template.ApiServer.Accessors;
+
+public sealed class DataServiceTest
+{
+    [Fact]
+    public async Task CountAsyncReturnsScalar()
+    {
+        // Arrange
+        using var con = new MockDbConnection();
+        con.SetupCommand(static cmd => cmd.SetupResult(3));
+        using var provider = CreateProvider(con);
+        var service = provider.GetRequiredService<DataService>();
+
+        // Act
+        var count = await service.CountAsync(null);
+
+        // Assert
+        Assert.Equal(3, count);
+    }
+
+    [Fact]
+    public async Task UpdateAsyncWithoutAffectedRowsReturnsNotFound()
+    {
+        // Arrange
+        using var con = new MockDbConnection();
+        con.SetupCommand(static cmd => cmd.SetupResult(0));
+        using var provider = CreateProvider(con);
+        var service = provider.GetRequiredService<DataService>();
+
+        // Act
+        var result = await service.UpdateAsync(1, "name", 100);
+
+        // Assert
+        Assert.Equal(DataWriteStatus.NotFound, result);
+    }
+
+    private static ServiceProvider CreateProvider(MockDbConnection con)
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IDbProvider>(new DelegateDbProvider(() => con));
+        services.AddSingleton<IDialect>(new DelegateDialect(static _ => false, static x => x));
+        services.AddSingleton(TimeProvider.System);
+        services.AddDataAccessors(typeof(DataAccessor).Assembly);
+        services.AddSingleton<DataService>();
+        return services.BuildServiceProvider();
+    }
+}

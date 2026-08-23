@@ -25,6 +25,9 @@ internal static partial class Log
     [LoggerMessage(Level = LogLevel.Information, Message = "Telemetry: otelEndPoint=[{otelEndPoint}], prometheusUri=[{prometheusUri}]")]
     public static partial void InfoServiceSettingsTelemetry(this ILogger logger, string otelEndPoint, string prometheusUri);
 
+    [LoggerMessage(Level = LogLevel.Information, Message = "Auth: setting=[{setting}]")]
+    public static partial void InfoServiceSettingsAuth(this ILogger logger, AuthSetting setting);
+
     // Error
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Unhandled exception.")]
