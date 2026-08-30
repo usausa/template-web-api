@@ -3,6 +3,7 @@ namespace Template.ApiServer.Host.Settings;
 using BunnyTail.CommonCode;
 
 // 起動時ログへ設定内容を出力するため、シークレットをマスクしたToStringを生成する
+#pragma warning disable CA1002
 [GenerateToString]
 public sealed partial class AuthSetting
 {
@@ -37,3 +38,4 @@ public sealed partial class AuthSetting
         public List<string> Roles { get; } = [];
     }
 }
+#pragma warning restore CA1002
