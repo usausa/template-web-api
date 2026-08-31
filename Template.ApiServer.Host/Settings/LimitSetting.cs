@@ -1,5 +1,6 @@
 namespace Template.ApiServer.Host.Settings;
 
+#pragma warning disable CA1034
 public sealed class LimitSetting
 {
     [Required]
@@ -20,3 +21,4 @@ public sealed class LimitSetting
         public int QueueLimit { get; set; }
     }
 }
+#pragma warning restore CA1034
