@@ -7,7 +7,7 @@ using Smart.Mock.Data;
 
 using Template.ApiServer.Accessors;
 
-public sealed class DataServiceTest
+public sealed class DataServiceTests
 {
     [Fact]
     public async Task CountAsyncReturnsScalar()

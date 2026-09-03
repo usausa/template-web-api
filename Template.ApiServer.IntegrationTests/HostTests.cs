@@ -1,10 +1,10 @@
 namespace Template.ApiServer;
 
-public sealed class HostTest : IClassFixture<TestApplicationFactory>
+public sealed class HostTests : IClassFixture<TestApplicationFactory>
 {
     private readonly TestApplicationFactory factory;
 
-    public HostTest(TestApplicationFactory factory)
+    public HostTests(TestApplicationFactory factory)
     {
         this.factory = factory;
     }

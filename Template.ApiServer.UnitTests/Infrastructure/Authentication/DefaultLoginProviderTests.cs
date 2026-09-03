@@ -3,7 +3,7 @@ namespace Template.ApiServer.Infrastructure.Authentication;
 using Template.ApiServer.Host.Infrastructure.Authentication;
 using Template.ApiServer.Host.Settings;
 
-public sealed class DefaultLoginProviderTest
+public sealed class DefaultLoginProviderTests
 {
     [Fact]
     public async Task AuthenticateReturnsAccount()

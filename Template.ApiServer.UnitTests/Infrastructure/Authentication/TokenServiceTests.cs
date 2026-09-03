@@ -3,7 +3,7 @@ namespace Template.ApiServer.Infrastructure.Authentication;
 using Template.ApiServer.Host.Infrastructure.Authentication;
 using Template.ApiServer.Host.Settings;
 
-public sealed class TokenServiceTest
+public sealed class TokenServiceTests
 {
     private static readonly DateTimeOffset Now = new(2026, 8, 23, 0, 0, 0, TimeSpan.Zero);
 

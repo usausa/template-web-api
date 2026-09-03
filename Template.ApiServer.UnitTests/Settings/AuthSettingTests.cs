@@ -2,7 +2,7 @@ namespace Template.ApiServer.Settings;
 
 using Template.ApiServer.Host.Settings;
 
-public sealed class AuthSettingTest
+public sealed class AuthSettingTests
 {
     [Fact]
     public void ToStringMasksSecrets()

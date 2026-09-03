@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 
 using Template.ApiServer.Host.Models.Data;
 
-public sealed class DataCreateRequestTest
+public sealed class DataCreateRequestTests
 {
     [Fact]
     public void ValidRequestPassesValidation()

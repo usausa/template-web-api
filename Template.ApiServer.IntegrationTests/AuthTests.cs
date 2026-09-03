@@ -5,11 +5,11 @@ using System.Net.Http.Headers;
 using Template.ApiServer.Host.Models.Auth;
 using Template.ApiServer.Host.Models.Data;
 
-public sealed class AuthTest : IClassFixture<TestApplicationFactory>
+public sealed class AuthTests : IClassFixture<TestApplicationFactory>
 {
     private readonly TestApplicationFactory factory;
 
-    public AuthTest(TestApplicationFactory factory)
+    public AuthTests(TestApplicationFactory factory)
     {
         this.factory = factory;
     }

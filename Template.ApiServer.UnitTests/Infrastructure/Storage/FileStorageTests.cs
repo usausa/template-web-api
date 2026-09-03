@@ -1,12 +1,12 @@
 namespace Template.ApiServer.Infrastructure.Storage;
 
-public sealed class FileStorageTest : IDisposable
+public sealed class FileStorageTests : IDisposable
 {
     private readonly string root = Path.Combine(Path.GetTempPath(), $"storage-test-{Guid.NewGuid():N}");
 
     private readonly FileStorage storage;
 
-    public FileStorageTest()
+    public FileStorageTests()
     {
         Directory.CreateDirectory(root);
         storage = new FileStorage(new FileStorageOptions { Root = root });
