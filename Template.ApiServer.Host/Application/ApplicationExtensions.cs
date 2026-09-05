@@ -620,7 +620,7 @@ public static class ApplicationExtensions
         {
             0 => null,
             1 => listeners[0],
-            _ => new ChainListener(listeners.ToArray())
+            _ => new ChainListener(listeners)
         };
     }
 
