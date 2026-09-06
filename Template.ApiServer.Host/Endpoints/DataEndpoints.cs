@@ -31,10 +31,11 @@ public static class DataEndpoints
     private static async ValueTask<IResult> HandleListAsync(
         DataUsecase dataUsecase,
         string? name,
+        CancellationToken cancellationToken,
         [Range(0, Int32.MaxValue)] int page = 0,
         [Range(1, 100)] int size = 20)
     {
-        var result = await dataUsecase.QueryPageAsync(name, page, size);
+        var result = await dataUsecase.QueryPageAsync(name, page, size, cancellationToken);
         return TypedResults.Ok(new DataListResponse(
             result.Total,
             result.Page,

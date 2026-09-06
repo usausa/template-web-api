@@ -9,10 +9,10 @@ public sealed partial class DataAccessor
     public partial void Create();
 
     [ExecuteScalar]
-    public partial ValueTask<int> CountAsync(string? name);
+    public partial ValueTask<int> CountAsync(string? name, CancellationToken cancellationToken);
 
     [Query]
-    public partial ValueTask<List<DataEntity>> QueryPageAsync(string? name, int offset, int size);
+    public partial ValueTask<List<DataEntity>> QueryPageAsync(string? name, int offset, int size, CancellationToken cancellationToken);
 
     [QueryFirst]
     public partial ValueTask<DataEntity?> QueryAsync(long id);

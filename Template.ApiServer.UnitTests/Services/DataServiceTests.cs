@@ -19,7 +19,7 @@ public sealed class DataServiceTests
         var service = provider.GetRequiredService<DataService>();
 
         // Act
-        var count = await service.CountAsync(null);
+        var count = await service.CountAsync(null, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, count);
