@@ -7,6 +7,13 @@ using Template.ApiServer.Host.Models.Data;
 
 public sealed class AuthTests : IClassFixture<TestApplicationFactory>
 {
+    // CA1861: Assertの比較対象は毎回同じ配列のため、呼び出しごとに生成しない
+    private static readonly string[] SortedByName = ["SortItemA", "SortItemB", "SortItemC"];
+
+    private static readonly int[] SortedByValueDescending = [30, 20, 10];
+
+    private static readonly string[] InsertionOrder = ["SortItemB", "SortItemA", "SortItemC"];
+
     private readonly TestApplicationFactory factory;
 
     public AuthTests(TestApplicationFactory factory)
@@ -96,5 +103,34 @@ public sealed class AuthTests : IClassFixture<TestApplicationFactory>
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+    [Fact]
+    public async Task DataApiSortsByRequestedColumn()
+    {
+        // Arrange
+        var client = factory.CreateClient();
+        var login = await client.PostAsJsonAsync(new Uri("/api/auth/login", UriKind.Relative), new LoginRequest("test", "test"), TestContext.Current.CancellationToken);
+        var token = (await login.Content.ReadFromJsonAsync<LoginResponse>(TestContext.Current.CancellationToken))!.Token;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        // 登録順とName順・Value順がいずれも異なるように積む
+        await client.PostAsJsonAsync(new Uri("/api/data", UriKind.Relative), new DataCreateRequest("SortItemB", 20), TestContext.Current.CancellationToken);
+        await client.PostAsJsonAsync(new Uri("/api/data", UriKind.Relative), new DataCreateRequest("SortItemA", 30), TestContext.Current.CancellationToken);
+        await client.PostAsJsonAsync(new Uri("/api/data", UriKind.Relative), new DataCreateRequest("SortItemC", 10), TestContext.Current.CancellationToken);
+
+        // Act
+        var byName = await client.GetFromJsonAsync<DataListResponse>(new Uri("/api/data?name=SortItem&sort=Name", UriKind.Relative), TestContext.Current.CancellationToken);
+        var byValueDesc = await client.GetFromJsonAsync<DataListResponse>(new Uri("/api/data?name=SortItem&sort=Value&desc=true", UriKind.Relative), TestContext.Current.CancellationToken);
+        var unknownKey = await client.GetFromJsonAsync<DataListResponse>(new Uri("/api/data?name=SortItem&sort=Unknown", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.NotNull(byName);
+        Assert.Equal(SortedByName, byName.Items.Select(static x => x.Name));
+        Assert.NotNull(byValueDesc);
+        Assert.Equal(SortedByValueDescending, byValueDesc.Items.Select(static x => x.Value));
+
+        // 未知のキーはSQLのelse(Id順=登録順)へ落ちる
+        Assert.NotNull(unknownKey);
+        Assert.Equal(InsertionOrder, unknownKey.Items.Select(static x => x.Name));
     }
 }

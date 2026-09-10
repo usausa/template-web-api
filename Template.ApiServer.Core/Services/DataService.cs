@@ -1,10 +1,17 @@
 namespace Template.ApiServer.Services;
 
 using Template.ApiServer.Accessors;
+using Template.ApiServer.Infrastructure.Data;
 using Template.ApiServer.Models.Entity;
 
 public sealed class DataService
 {
+    // 並べ替えに使える列。SqlHelper.NormalizeSortがこの集合以外を弾く
+    private static readonly string[] SortKeys = ["Name", "Value", "CreatedAt"];
+
+    // 一致しなかったときの並び順。テーブルの主キー
+    private const string DefaultSortColumn = "Id";
+
     private readonly IDialect dialect;
 
     private readonly DataAccessor dataAccessor;
@@ -27,8 +34,8 @@ public sealed class DataService
     public ValueTask<int> CountAsync(string? name, CancellationToken cancellationToken = default) =>
         dataAccessor.CountAsync(name, cancellationToken);
 
-    public ValueTask<List<DataEntity>> QueryPageAsync(string? name, int offset, int size, CancellationToken cancellationToken = default) =>
-        dataAccessor.QueryPageAsync(name, offset, size, cancellationToken);
+    public ValueTask<List<DataEntity>> QueryPageAsync(string? name, string? sort, bool desc, int offset, int size, CancellationToken cancellationToken = default) =>
+        dataAccessor.QueryPageAsync(name, SqlHelper.NormalizeSort(SortKeys, DefaultSortColumn, sort, desc), offset, size, cancellationToken);
 
     public ValueTask<DataEntity?> QueryAsync(long id) =>
         dataAccessor.QueryAsync(id);
