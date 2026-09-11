@@ -580,6 +580,9 @@ public static class ApplicationExtensions
         // Prepare instrument
         app.Services.GetRequiredService<ApplicationInstrument>();
 
+        // Prepare storage
+        Directory.CreateDirectory(app.Services.GetRequiredService<FileStorageOptions>().Root);
+
         // Prepare database
         app.Services.GetRequiredService<DataService>().CreateTable();
 
