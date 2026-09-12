@@ -491,7 +491,7 @@ public static class ApplicationExtensions
         builder.Services.AddSingleton<TokenService>();
         builder.Services.AddSingleton<ILoginProvider, DefaultLoginProvider>();
 
-        // Service & Usecase
+        // Service
         builder.Services.AddCoreServices();
 
         // Setting

@@ -2,6 +2,7 @@ namespace Template.ApiServer.Services;
 
 using Template.ApiServer.Accessors;
 using Template.ApiServer.Infrastructure.Data;
+using Template.ApiServer.Models;
 using Template.ApiServer.Models.Entity;
 
 public sealed class DataService
@@ -34,8 +35,13 @@ public sealed class DataService
     public ValueTask<int> CountAsync(string? name, CancellationToken cancellationToken = default) =>
         dataAccessor.CountAsync(name, cancellationToken);
 
-    public ValueTask<List<DataEntity>> QueryPageAsync(string? name, string? sort, bool desc, int offset, int size, CancellationToken cancellationToken = default) =>
-        dataAccessor.QueryPageAsync(name, SqlHelper.NormalizeSort(SortKeys, DefaultSortColumn, sort, desc), offset, size, cancellationToken);
+    // ページ番号と件数で扱い、総件数と合わせて返す
+    public async ValueTask<PagedResult<DataEntity>> QueryPageAsync(string? name, string? sort, bool desc, int page, int size, CancellationToken cancellationToken = default)
+    {
+        var total = await dataAccessor.CountAsync(name, cancellationToken);
+        var items = await dataAccessor.QueryPageAsync(name, SqlHelper.NormalizeSort(SortKeys, DefaultSortColumn, sort, desc), page * size, size, cancellationToken);
+        return new PagedResult<DataEntity>(total, page, size, items);
+    }
 
     public ValueTask<DataEntity?> QueryAsync(long id) =>
         dataAccessor.QueryAsync(id);
