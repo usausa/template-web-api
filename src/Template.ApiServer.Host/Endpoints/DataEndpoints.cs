@@ -2,7 +2,6 @@ namespace Template.ApiServer.Host.Endpoints;
 
 using Template.ApiServer.Host.Application;
 using Template.ApiServer.Host.Infrastructure.Filters;
-using Template.ApiServer.Host.Mappers;
 using Template.ApiServer.Host.Models.Data;
 
 public static class DataEndpoints
@@ -51,7 +50,7 @@ public static class DataEndpoints
     {
         var entity = await dataService.QueryAsync(id);
         return entity is not null
-            ? TypedResults.Ok(DataMapper.ToResponse(entity))
+            ? TypedResults.Ok(entity.ToResponse())
             : TypedResults.NotFound();
     }
 
