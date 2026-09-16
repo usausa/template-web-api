@@ -32,8 +32,9 @@ public sealed class ApplicationInstrument : IDisposable
     private static long ObserveApplicationUptime() =>
         (long)(DateTime.Now - Process.GetCurrentProcess().StartTime).TotalSeconds;
 
-    public void IncrementRequestLongExecution() => requestLongExecution.Add(1);
+    public void IncrementRequestExecution(string method, string route) =>
+        requestExecution.Add(1, new("http.request.method", method), new("http.route", route));
 
-    public void IncrementRequestExecution(string area, string controller, string action) =>
-        requestExecution.Add(1, new("area", area), new("controller", controller), new("action", action));
+    public void IncrementRequestLongExecution(string method, string route) =>
+        requestLongExecution.Add(1, new("http.request.method", method), new("http.route", route));
 }

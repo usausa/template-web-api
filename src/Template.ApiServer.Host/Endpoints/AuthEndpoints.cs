@@ -12,7 +12,7 @@ public static class AuthEndpoints
 
     public static void MapAuthEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup(ApiRoutes.Auth)
+        var group = app.MapApiGroup(ApiRoutes.Auth)
             .RequireRateLimiting(RateLimitPolicies.Auth);
 
         group.MapPost("/login", HandleLoginAsync).AllowAnonymous();

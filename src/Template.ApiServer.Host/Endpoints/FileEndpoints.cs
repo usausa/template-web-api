@@ -13,7 +13,7 @@ public static class FileEndpoints
 
     public static void MapFileEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup(ApiRoutes.Files)
+        var group = app.MapApiGroup(ApiRoutes.Files)
             .RequireAuthorization()
             .AddEndpointFilter<StorageExceptionFilter>();
 
