@@ -2,11 +2,15 @@ namespace Template.ApiServer.Host.Infrastructure.Logging;
 
 public static class LoggingContext
 {
-    private static readonly AsyncLocal<string?> UserIdLocal = new();
+    private static readonly AsyncLocal<LoggingContextData?> Local = new();
 
-    public static string? UserId
-    {
-        get => UserIdLocal.Value;
-        set => UserIdLocal.Value = value;
-    }
+    public static string? RemoteIpAddress => Local.Value?.RemoteIpAddress;
+
+    public static string? UserId => Local.Value?.UserId;
+
+    public static void Set(string? remoteIpAddress, string? userId) =>
+        Local.Value = new LoggingContextData(remoteIpAddress, userId);
+
+    public static void Clear() =>
+        Local.Value = null;
 }

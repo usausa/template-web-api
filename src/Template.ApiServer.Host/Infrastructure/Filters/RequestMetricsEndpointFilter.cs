@@ -4,24 +4,24 @@ using Template.ApiServer.Host.Application.Telemetry;
 
 public sealed class RequestMetricsEndpointFilter : IEndpointFilter
 {
-    private readonly ApplicationInstrument instrument;
+    private readonly ILogger<RequestMetricsEndpointFilter> log;
 
     private readonly TimeProvider timeProvider;
 
-    private readonly ILogger<RequestMetricsEndpointFilter> log;
-
     private readonly TimeSpan longExecutionThreshold;
 
+    private readonly ApplicationInstrument instrument;
+
     public RequestMetricsEndpointFilter(
-        ApplicationInstrument instrument,
+        ILogger<RequestMetricsEndpointFilter> log,
         TimeProvider timeProvider,
         TelemetrySetting setting,
-        ILogger<RequestMetricsEndpointFilter> log)
+        ApplicationInstrument instrument)
     {
-        this.instrument = instrument;
-        this.timeProvider = timeProvider;
         this.log = log;
+        this.timeProvider = timeProvider;
         longExecutionThreshold = TimeSpan.FromMilliseconds(setting.LongExecutionThreshold);
+        this.instrument = instrument;
     }
 
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
