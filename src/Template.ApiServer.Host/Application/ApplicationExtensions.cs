@@ -220,6 +220,9 @@ public static class ApplicationExtensions
         // Exception handler
         app.UseExceptionHandler();
 
+        // Status code page
+        app.UseStatusCodePages();
+
         return app;
     }
 
