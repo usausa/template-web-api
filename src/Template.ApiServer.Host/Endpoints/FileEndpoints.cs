@@ -59,6 +59,7 @@ public static class FileEndpoints
         return TypedResults.Stream(stream, "application/octet-stream", Path.GetFileName(path));
     }
 
+    [DisableRequestSizeLimit]
     private static async ValueTask<IResult> HandleUploadAsync(
         HttpContext context,
         IStorage storage,

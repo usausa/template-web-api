@@ -13,7 +13,6 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.ResponseCompression;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.FeatureManagement;
@@ -91,11 +90,12 @@ public static class ApplicationExtensions
         // Application log
         builder.Logging.ClearProviders();
         builder.Services.AddSerilog(
-            options =>
+            (provider, options) =>
             {
+                var accessor = provider.GetRequiredService<IHttpContextAccessor>();
                 options.ReadFrom.Configuration(builder.Configuration);
-                options.Enrich.With(new CallbackEnricher("RemoteIpAddress", static () => LoggingContext.RemoteIpAddress));
-                options.Enrich.With(new CallbackEnricher("UserId", static () => LoggingContext.UserId));
+                options.Enrich.With(new CallbackEnricher("RemoteIpAddress", () => accessor.HttpContext?.Connection.RemoteIpAddress?.ToString()));
+                options.Enrich.With(new CallbackEnricher("UserId", () => accessor.HttpContext?.User.Identity?.Name));
             },
             writeToProviders: useOtlpExporter);
 
@@ -134,7 +134,7 @@ public static class ApplicationExtensions
         return builder;
     }
 
-    public static WebApplication UseLogging(this WebApplication app)
+    public static WebApplication UseW3CLog(this WebApplication app)
     {
         var setting = app.Services.GetRequiredService<LogSetting>();
         if (setting.W3CLog.Enable)
@@ -142,17 +142,16 @@ public static class ApplicationExtensions
             app.UseW3CLogging();
         }
 
+        return app;
+    }
+
+    public static WebApplication UseHttpLog(this WebApplication app)
+    {
+        var setting = app.Services.GetRequiredService<LogSetting>();
         if (setting.HttpLog)
         {
             app.UseHttpLogging();
         }
-
-        return app;
-    }
-
-    public static WebApplication UseLoggingContext(this WebApplication app)
-    {
-        app.UseMiddleware<LoggingContextMiddleware>();
 
         return app;
     }
@@ -165,12 +164,6 @@ public static class ApplicationExtensions
     {
         // Add services to the container.
         builder.Services.AddHttpContextAccessor();
-
-        // Size limit
-        builder.Services.Configure<KestrelServerOptions>(static options =>
-        {
-            options.Limits.MaxRequestBodySize = Int32.MaxValue;
-        });
 
         // Route
         builder.Services.Configure<RouteOptions>(static options =>
