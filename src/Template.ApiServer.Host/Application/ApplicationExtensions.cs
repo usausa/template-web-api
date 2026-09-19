@@ -184,6 +184,32 @@ public static class ApplicationExtensions
         return builder;
     }
 
+    public static WebApplication UseSecurityHeaders(this WebApplication app)
+    {
+        // HSTS
+        if (!app.Environment.IsDevelopment())
+        {
+            app.UseHsts();
+        }
+
+        // Headers
+        app.Use(static (context, next) =>
+        {
+            context.Response.OnStarting(static state =>
+            {
+                var headers = ((HttpContext)state).Response.Headers;
+                headers.XContentTypeOptions = "nosniff";
+                headers.XFrameOptions = "DENY";
+                headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+                return Task.CompletedTask;
+            }, context);
+
+            return next(context);
+        });
+
+        return app;
+    }
+
     //--------------------------------------------------------------------------------
     // API
     //--------------------------------------------------------------------------------
