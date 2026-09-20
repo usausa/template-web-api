@@ -39,6 +39,7 @@ using Template.ApiServer.Host.Infrastructure.Authentication;
 using Template.ApiServer.Host.Infrastructure.ExceptionHandling;
 using Template.ApiServer.Host.Infrastructure.HealthChecks;
 using Template.ApiServer.Host.Infrastructure.Logging;
+using Template.ApiServer.Host.Infrastructure.Security;
 using Template.ApiServer.Infrastructure.Storage;
 
 public static class ApplicationExtensions
@@ -193,19 +194,7 @@ public static class ApplicationExtensions
         }
 
         // Headers
-        app.Use(static (context, next) =>
-        {
-            context.Response.OnStarting(static state =>
-            {
-                var headers = ((HttpContext)state).Response.Headers;
-                headers.XContentTypeOptions = "nosniff";
-                headers.XFrameOptions = "DENY";
-                headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-                return Task.CompletedTask;
-            }, context);
-
-            return next(context);
-        });
+        app.UseMiddleware<SecurityHeadersMiddleware>();
 
         return app;
     }
