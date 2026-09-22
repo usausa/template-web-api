@@ -8,6 +8,8 @@ using System.Text.RegularExpressions;
 using System.Text.Unicode;
 using System.Threading.RateLimiting;
 
+using Asp.Versioning;
+
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpLogging;
@@ -217,6 +219,28 @@ public static class ApplicationExtensions
         // Validation
         builder.Services.AddValidation();
 
+        // Versioning (OpenAPI document per version)
+        builder.Services
+            .AddApiVersioning(static options =>
+            {
+                options.ReportApiVersions = true;
+                options.ApiVersionReader = new UrlSegmentApiVersionReader();
+            })
+            .AddApiExplorer(static options =>
+            {
+                options.GroupNameFormat = "'v'VVV";
+                options.SubstituteApiVersionInUrl = true;
+            })
+            .AddOpenApi(static options =>
+            {
+                options.Document.AddDocumentTransformer(static (document, _, _) =>
+                {
+                    document.Info.Title = "Template API";
+                    document.Info.Description = "Template API server.";
+                    return Task.CompletedTask;
+                });
+            });
+
         // Error handler
         builder.Services.AddProblemDetails(static options =>
         {
@@ -365,26 +389,6 @@ public static class ApplicationExtensions
         }
 
         return app;
-    }
-
-    //--------------------------------------------------------------------------------
-    // OpenApi
-    //--------------------------------------------------------------------------------
-
-    public static IHostApplicationBuilder ConfigureOpenApi(this IHostApplicationBuilder builder)
-    {
-        builder.Services.AddOpenApi(static options =>
-        {
-            options.AddDocumentTransformer(static (document, _, _) =>
-            {
-                document.Info.Title = "Template API";
-                document.Info.Version = "v1";
-                document.Info.Description = "Template API server.";
-                return Task.CompletedTask;
-            });
-        });
-
-        return builder;
     }
 
     //--------------------------------------------------------------------------------
@@ -591,9 +595,9 @@ public static class ApplicationExtensions
         // Develop
         if (app.Environment.IsDevelopment())
         {
-            app.MapOpenApi();
+            app.MapOpenApi().WithDocumentPerVersion();
             // [MEMO] Add yaml support
-            app.MapOpenApi("/openapi/{documentName}.yaml");
+            app.MapOpenApi("/openapi/{documentName}.yaml").WithDocumentPerVersion();
 
             // NSwag UI (SwaggerUI / ReDoc) using MapOpenApi generated specification
             app.UseSwaggerUi(static options =>

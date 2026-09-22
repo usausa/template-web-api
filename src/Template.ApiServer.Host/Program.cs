@@ -29,8 +29,6 @@ builder.ConfigureAuthentication();
 builder.ConfigureRateLimiter();
 // Compress
 builder.ConfigureCompression();
-// OpenApi
-builder.ConfigureOpenApi();
 
 // Health
 builder.ConfigureHealth();

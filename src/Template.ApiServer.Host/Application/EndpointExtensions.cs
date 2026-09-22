@@ -4,6 +4,10 @@ using Template.ApiServer.Host.Infrastructure.Filters;
 
 public static class EndpointExtensions
 {
+    // v1 だけを定義する。版を足すときは HasApiVersion を重ね、旧版は HasDeprecatedApiVersion にする
     public static RouteGroupBuilder MapApiGroup(this IEndpointRouteBuilder endpoints, string prefix) =>
-        endpoints.MapGroup(prefix).AddEndpointFilter<RequestMetricsEndpointFilter>();
+        endpoints.NewVersionedApi()
+            .MapGroup(prefix)
+            .HasApiVersion(ApiVersions.V1)
+            .AddEndpointFilter<RequestMetricsEndpointFilter>();
 }

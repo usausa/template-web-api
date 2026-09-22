@@ -33,12 +33,12 @@ public sealed class MetricsTests : IClassFixture<TestApplicationFactory>
         listener.Start();
 
         var client = factory.CreateClient();
-        var login = await client.PostAsJsonAsync(new Uri("/api/auth/login", UriKind.Relative), new LoginRequest("test", "test"), TestContext.Current.CancellationToken);
+        var login = await client.PostAsJsonAsync(new Uri("/api/v1/auth/login", UriKind.Relative), new LoginRequest("test", "test"), TestContext.Current.CancellationToken);
         var token = (await login.Content.ReadFromJsonAsync<LoginResponse>(TestContext.Current.CancellationToken))!.Token;
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         // Act
-        var response = await client.GetAsync(new Uri("/api/data", UriKind.Relative), TestContext.Current.CancellationToken);
+        var response = await client.GetAsync(new Uri("/api/v1/data", UriKind.Relative), TestContext.Current.CancellationToken);
 
         // Assert
         response.EnsureSuccessStatusCode();

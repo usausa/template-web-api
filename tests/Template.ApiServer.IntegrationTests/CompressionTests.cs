@@ -47,7 +47,7 @@ public sealed class CompressionTests : IClassFixture<TestApplicationFactory>
         content.Headers.ContentEncoding.Add("gzip");
 
         // Act
-        var response = await client.PostAsync(new Uri("/api/auth/login", UriKind.Relative), content, TestContext.Current.CancellationToken);
+        var response = await client.PostAsync(new Uri("/api/v1/auth/login", UriKind.Relative), content, TestContext.Current.CancellationToken);
 
         // Assert
         response.EnsureSuccessStatusCode();

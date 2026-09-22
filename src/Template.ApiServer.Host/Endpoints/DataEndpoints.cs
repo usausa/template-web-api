@@ -4,6 +4,7 @@ using Smart.Mapper;
 
 using Template.ApiServer.Host.Application;
 using Template.ApiServer.Host.Infrastructure.Filters;
+using Template.ApiServer.Host.Infrastructure.Http;
 using Template.ApiServer.Host.Models.Data;
 
 public static partial class DataEndpoints
@@ -51,36 +52,56 @@ public static partial class DataEndpoints
 
     private static async ValueTask<IResult> HandleGetAsync(
         DataService dataService,
+        HttpResponse response,
         long id)
     {
         var entity = await dataService.QueryAsync(id);
-        return entity is not null
-            ? TypedResults.Ok(ToResponse(entity))
-            : TypedResults.NotFound();
+        if (entity is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        response.Headers.ETag = EntityTag.From(entity.Version);
+        return TypedResults.Ok(ToResponse(entity));
     }
 
     private static async ValueTask<IResult> HandleCreateAsync(
         DataService dataService,
+        HttpRequest httpRequest,
         DataCreateRequest request)
     {
         var id = await dataService.InsertAsync(request.Name, request.Value);
         return id.HasValue
-            ? TypedResults.Created($"{ApiRoutes.Data}/{id.Value}", new DataCreateResponse(id.Value))
+            ? TypedResults.Created($"{httpRequest.Path}/{id.Value}", new DataCreateResponse(id.Value))
             : TypedResults.Problem(statusCode: StatusCodes.Status409Conflict, title: "Duplicate name.");
     }
 
     private static async ValueTask<IResult> HandleUpdateAsync(
         DataService dataService,
+        HttpResponse response,
         long id,
-        DataUpdateRequest request)
+        DataUpdateRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch)
     {
-        var result = await dataService.UpdateAsync(id, request.Name, request.Value);
-        return result switch
+        // If-Match の版と一致するときだけ更新する。無ければ無条件
+        if (!EntityTag.TryParseIfMatch(ifMatch, out var version))
         {
-            DataWriteStatus.Success => TypedResults.NoContent(),
-            DataWriteStatus.NotFound => TypedResults.NotFound(),
-            _ => TypedResults.Problem(statusCode: StatusCodes.Status409Conflict, title: "Duplicate name.")
-        };
+            return TypedResults.Problem(statusCode: StatusCodes.Status412PreconditionFailed, title: "Version mismatch.");
+        }
+
+        var result = await dataService.UpdateAsync(id, request.Name, request.Value, version);
+        switch (result.Status)
+        {
+            case DataWriteStatus.Success:
+                response.Headers.ETag = EntityTag.From(result.Version);
+                return TypedResults.NoContent();
+            case DataWriteStatus.NotFound:
+                return TypedResults.NotFound();
+            case DataWriteStatus.VersionMismatch:
+                return TypedResults.Problem(statusCode: StatusCodes.Status412PreconditionFailed, title: "Version mismatch.");
+            default:
+                return TypedResults.Problem(statusCode: StatusCodes.Status409Conflict, title: "Duplicate name.");
+        }
     }
 
     private static async ValueTask<IResult> HandleDeleteAsync(

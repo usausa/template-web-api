@@ -63,18 +63,26 @@ public sealed class DataService
         }
     }
 
-    public async ValueTask<DataWriteStatus> UpdateAsync(long id, string name, int value)
+    // version を指定した更新は一致した行だけ書き換える(楽観的同時実行制御)。null なら無条件
+    public async ValueTask<DataUpdateResult> UpdateAsync(long id, string name, int value, int? version = null)
     {
         try
         {
-            var rows = await dataAccessor.UpdateAsync(id, name, value);
-            return rows > 0 ? DataWriteStatus.Success : DataWriteStatus.NotFound;
+            var updated = await dataAccessor.UpdateAsync(id, name, value, version);
+            if (updated.HasValue)
+            {
+                return new DataUpdateResult(DataWriteStatus.Success, updated.Value);
+            }
+
+            // 行が無いのか版が違うのかを分ける
+            var exists = version.HasValue && await dataAccessor.QueryAsync(id) is not null;
+            return new DataUpdateResult(exists ? DataWriteStatus.VersionMismatch : DataWriteStatus.NotFound, 0);
         }
         catch (DbException ex)
         {
             if (dialect.IsDuplicate(ex))
             {
-                return DataWriteStatus.Duplicate;
+                return new DataUpdateResult(DataWriteStatus.Duplicate, 0);
             }
 
             throw;

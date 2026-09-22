@@ -20,8 +20,8 @@ public sealed partial class DataAccessor
     [ExecuteScalar]
     public partial ValueTask<long> InsertAsync(string name, int value, DateTime createdAt);
 
-    [Execute]
-    public partial ValueTask<int> UpdateAsync(long id, string name, int value);
+    [ExecuteScalar]
+    public partial ValueTask<int?> UpdateAsync(long id, string name, int value, int? version);
 
     [Execute]
     public partial ValueTask<int> DeleteAsync(long id);

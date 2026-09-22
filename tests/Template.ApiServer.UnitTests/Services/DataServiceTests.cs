@@ -6,6 +6,7 @@ using Smart.Data;
 using Smart.Mock.Data;
 
 using Template.ApiServer.Accessors;
+using Template.ApiServer.Models.Entity;
 
 public sealed class DataServiceTests
 {
@@ -26,11 +27,28 @@ public sealed class DataServiceTests
     }
 
     [Fact]
+    public async Task UpdateAsyncReturnsNewVersion()
+    {
+        // Arrange
+        await using var con = new MockDbConnection();
+        con.SetupCommand(static cmd => cmd.SetupResult(2));
+        await using var provider = CreateProvider(con);
+        var service = provider.GetRequiredService<DataService>();
+
+        // Act
+        var result = await service.UpdateAsync(1, "name", 100, 1);
+
+        // Assert
+        Assert.Equal(DataWriteStatus.Success, result.Status);
+        Assert.Equal(2, result.Version);
+    }
+
+    [Fact]
     public async Task UpdateAsyncWithoutAffectedRowsReturnsNotFound()
     {
         // Arrange
         await using var con = new MockDbConnection();
-        con.SetupCommand(static cmd => cmd.SetupResult(0));
+        con.SetupCommand(static cmd => cmd.SetupResult(DBNull.Value));
         await using var provider = CreateProvider(con);
         var service = provider.GetRequiredService<DataService>();
 
@@ -38,7 +56,24 @@ public sealed class DataServiceTests
         var result = await service.UpdateAsync(1, "name", 100);
 
         // Assert
-        Assert.Equal(DataWriteStatus.NotFound, result);
+        Assert.Equal(DataWriteStatus.NotFound, result.Status);
+    }
+
+    [Fact]
+    public async Task UpdateAsyncWithStaleVersionReturnsVersionMismatch()
+    {
+        // Arrange
+        await using var con = new MockDbConnection();
+        con.SetupCommand(static cmd => cmd.SetupResult(DBNull.Value));
+        con.SetupCommand(static cmd => cmd.SetupResult(MockHelper.CreateReader([new DataEntity { Id = 1, Name = "name", Value = 100, Version = 2 }])));
+        await using var provider = CreateProvider(con);
+        var service = provider.GetRequiredService<DataService>();
+
+        // Act
+        var result = await service.UpdateAsync(1, "name", 100, 1);
+
+        // Assert
+        Assert.Equal(DataWriteStatus.VersionMismatch, result.Status);
     }
 
     private static ServiceProvider CreateProvider(MockDbConnection con)

@@ -4,5 +4,6 @@ public enum DataWriteStatus
 {
     Success,
     NotFound,
-    Duplicate
+    Duplicate,
+    VersionMismatch
 }

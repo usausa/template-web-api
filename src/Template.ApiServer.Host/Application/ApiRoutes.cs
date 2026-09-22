@@ -2,11 +2,14 @@ namespace Template.ApiServer.Host.Application;
 
 public static class ApiRoutes
 {
-    public const string Auth = "/api/auth";
+    // 版は URL のセグメント(/api/v1/...)
+    private const string Prefix = "/api/v{version:apiVersion}";
 
-    public const string Data = "/api/data";
+    public const string Auth = Prefix + "/auth";
 
-    public const string Files = "/api/files";
+    public const string Data = Prefix + "/data";
 
-    public const string Test = "/api/test";
+    public const string Files = Prefix + "/files";
+
+    public const string Test = Prefix + "/test";
 }
