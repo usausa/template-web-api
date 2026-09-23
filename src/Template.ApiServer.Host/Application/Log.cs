@@ -1,5 +1,7 @@
 namespace Template.ApiServer.Host.Application;
 
+using Template.ApiServer.Host.Application.Authentication;
+
 internal static partial class Log
 {
     // Startup

@@ -35,3 +35,4 @@ global using Smart.Text;
 // ReSharper disable MissingBlankLines
 global using Template.ApiServer.Models;
 global using Template.ApiServer.Models.Entity;
+global using Template.ApiServer.Models.Parameters;

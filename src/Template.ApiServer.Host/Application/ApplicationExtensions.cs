@@ -35,11 +35,12 @@ using Serilog;
 using Smart.Data;
 
 using Template.ApiServer.Accessors;
+using Template.ApiServer.Host.Application.Authentication;
+using Template.ApiServer.Host.Application.Context;
+using Template.ApiServer.Host.Application.ExceptionHandling;
+using Template.ApiServer.Host.Application.HealthChecks;
 using Template.ApiServer.Host.Application.Telemetry;
 using Template.ApiServer.Host.Endpoints;
-using Template.ApiServer.Host.Infrastructure.Authentication;
-using Template.ApiServer.Host.Infrastructure.ExceptionHandling;
-using Template.ApiServer.Host.Infrastructure.HealthChecks;
 using Template.ApiServer.Host.Infrastructure.Logging;
 using Template.ApiServer.Host.Infrastructure.Security;
 using Template.ApiServer.Infrastructure.Storage;
@@ -48,6 +49,7 @@ public static class ApplicationExtensions
 {
     private const string HealthEndpointPath = "/health";
     private const string AlivenessEndpointPath = "/alive";
+    private const string SchemaPath = "Assets/Data/Schema.sql";
 
     //--------------------------------------------------------------------------------
     // System
@@ -195,8 +197,8 @@ public static class ApplicationExtensions
             app.UseHsts();
         }
 
-        // Headers
-        app.UseMiddleware<SecurityHeadersMiddleware>();
+        // Headers (API のみのためCSPは付けない)
+        app.UseMiddleware<SecurityHeadersMiddleware>(new SecurityHeadersOption());
 
         return app;
     }
@@ -535,15 +537,18 @@ public static class ApplicationExtensions
         builder.Services.AddMemoryCache();
 
         // Storage
-        builder.Services.AddOptions<FileStorageOptions>().BindConfiguration("Storage").ValidateDataAnnotations().ValidateOnStart();
-        builder.Services.AddSingleton(static p => p.GetRequiredService<IOptions<FileStorageOptions>>().Value);
+        builder.Services.AddOptions<FileStorageOption>().BindConfiguration("Storage").ValidateDataAnnotations().ValidateOnStart();
+        builder.Services.AddSingleton(static p => p.GetRequiredService<IOptions<FileStorageOption>>().Value);
         builder.Services.AddSingleton<IStorage, FileStorage>();
 
         // Authentication
-        builder.Services.AddSingleton<TokenService>();
+        builder.Services.AddSingleton<JwtTokenProvider>();
         builder.Services.AddSingleton<ILoginProvider, DefaultLoginProvider>();
 
         // Service
+        builder.Services.AddSingleton<ApplicationServiceContextProvider>();
+        builder.Services.AddSingleton<ServiceContextProvider>(static p => p.GetRequiredService<ApplicationServiceContextProvider>());
+
         builder.Services.AddCoreServices();
 
         // Setting
@@ -637,12 +642,10 @@ public static class ApplicationExtensions
         app.Services.GetRequiredService<ApplicationInstrument>();
 
         // Prepare storage
-        Directory.CreateDirectory(app.Services.GetRequiredService<FileStorageOptions>().Root);
+        Directory.CreateDirectory(app.Services.GetRequiredService<FileStorageOption>().Root);
 
-        // Prepare database
-        app.Services.GetRequiredService<DataService>().CreateTable();
-
-        return ValueTask.CompletedTask;
+        // Prepare database (schema from the SQL file)
+        return app.Services.GetRequiredService<DatabaseService>().InitializeAsync(SchemaPath, CancellationToken.None);
     }
 
     //--------------------------------------------------------------------------------

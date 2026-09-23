@@ -9,7 +9,7 @@ public sealed class FileStorageTests : IDisposable
     public FileStorageTests()
     {
         Directory.CreateDirectory(root);
-        storage = new FileStorage(new FileStorageOptions { Root = root });
+        storage = new FileStorage(new FileStorageOption { Root = root });
     }
 
     public void Dispose()

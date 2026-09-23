@@ -1,6 +1,7 @@
 namespace Template.ApiServer.Host.Application;
 
-using Template.ApiServer.Host.Infrastructure.Filters;
+using Template.ApiServer.Host.Application.Context;
+using Template.ApiServer.Host.Application.Telemetry;
 
 public static class EndpointExtensions
 {
@@ -9,5 +10,6 @@ public static class EndpointExtensions
         endpoints.NewVersionedApi()
             .MapGroup(prefix)
             .HasApiVersion(ApiVersions.V1)
-            .AddEndpointFilter<RequestMetricsEndpointFilter>();
+            .AddEndpointFilter<RequestMetricsEndpointFilter>()
+            .AddEndpointFilter<ServiceContextEndpointFilter>();
 }

@@ -1,9 +1,36 @@
 namespace Template.ApiServer.Host.Endpoints;
 
 using Template.ApiServer.Host.Application;
-using Template.ApiServer.Host.Infrastructure.Filters;
-using Template.ApiServer.Host.Models.File;
 using Template.ApiServer.Infrastructure.Storage;
+
+//--------------------------------------------------------------------------------
+// Models
+//--------------------------------------------------------------------------------
+
+public sealed class FileListResponse
+{
+    public IReadOnlyList<string> Entries { get; set; } = default!;
+}
+
+public sealed class FileUploadEntry
+{
+    public string Name { get; set; } = default!;
+
+    public long Size { get; set; }
+
+    public string Path { get; set; } = default!;
+}
+
+public sealed class FileUploadResponse
+{
+    public int Uploaded { get; set; }
+
+    public IReadOnlyList<FileUploadEntry> Files { get; set; } = default!;
+}
+
+//--------------------------------------------------------------------------------
+// Endpoints
+//--------------------------------------------------------------------------------
 
 public static class FileEndpoints
 {
@@ -15,7 +42,17 @@ public static class FileEndpoints
     {
         var group = app.MapApiGroup(ApiRoutes.Files)
             .RequireAuthorization()
-            .AddEndpointFilter<StorageExceptionFilter>();
+            .AddEndpointFilter(static async (context, next) =>
+            {
+                try
+                {
+                    return await next(context);
+                }
+                catch (StorageException)
+                {
+                    return TypedResults.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid path.");
+                }
+            });
 
         group.MapGet("/list/{**path}", HandleListAsync);
         group.MapGet("/download/{**path}", HandleDownloadAsync);
@@ -26,7 +63,7 @@ public static class FileEndpoints
     }
 
     //--------------------------------------------------------------------------------
-    // Handler
+    // List
     //--------------------------------------------------------------------------------
 
     private static async ValueTask<IResult> HandleListAsync(
@@ -42,8 +79,12 @@ public static class FileEndpoints
         }
 
         var entries = await storage.ListAsync(path, cancellationToken);
-        return TypedResults.Ok(new FileListResponse(entries));
+        return TypedResults.Ok(new FileListResponse { Entries = entries });
     }
+
+    //--------------------------------------------------------------------------------
+    // Download
+    //--------------------------------------------------------------------------------
 
     private static async ValueTask<IResult> HandleDownloadAsync(
         IStorage storage,
@@ -59,7 +100,10 @@ public static class FileEndpoints
         return TypedResults.Stream(stream, "application/octet-stream", Path.GetFileName(path));
     }
 
-    [DisableRequestSizeLimit]
+    //--------------------------------------------------------------------------------
+    // Upload
+    //--------------------------------------------------------------------------------
+
     private static async ValueTask<IResult> HandleUploadAsync(
         HttpContext context,
         IStorage storage,
@@ -80,11 +124,15 @@ public static class FileEndpoints
             await using var stream = file.OpenReadStream();
             await storage.WriteAsync(targetPath, stream, context.RequestAborted);
 
-            uploaded.Add(new FileUploadEntry(fileName, file.Length, targetPath));
+            uploaded.Add(new FileUploadEntry { Name = fileName, Size = file.Length, Path = targetPath });
         }
 
-        return TypedResults.Ok(new FileUploadResponse(uploaded.Count, uploaded));
+        return TypedResults.Ok(new FileUploadResponse { Uploaded = uploaded.Count, Files = uploaded });
     }
+
+    //--------------------------------------------------------------------------------
+    // Delete
+    //--------------------------------------------------------------------------------
 
     private static async ValueTask<IResult> HandleDeleteAsync(
         IStorage storage,

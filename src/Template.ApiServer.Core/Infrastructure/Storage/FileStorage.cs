@@ -6,7 +6,7 @@ public sealed class FileStorage : IStorage
 
     private readonly string root;
 
-    public FileStorage(FileStorageOptions options)
+    public FileStorage(FileStorageOption options)
     {
         root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(options.Root));
     }

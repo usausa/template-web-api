@@ -1,8 +1,31 @@
 namespace Template.ApiServer.Host.Endpoints;
 
 using Template.ApiServer.Host.Application;
-using Template.ApiServer.Host.Infrastructure.Authentication;
-using Template.ApiServer.Host.Models.Auth;
+using Template.ApiServer.Host.Application.Authentication;
+
+//--------------------------------------------------------------------------------
+// Models
+//--------------------------------------------------------------------------------
+
+public sealed class LoginRequest
+{
+    [Required]
+    public string Id { get; set; } = default!;
+
+    [Required]
+    public string Password { get; set; } = default!;
+}
+
+public sealed class LoginResponse
+{
+    public string Token { get; set; } = default!;
+
+    public DateTimeOffset ExpireAt { get; set; }
+}
+
+//--------------------------------------------------------------------------------
+// Endpoints
+//--------------------------------------------------------------------------------
 
 public static class AuthEndpoints
 {
@@ -19,13 +42,13 @@ public static class AuthEndpoints
     }
 
     //--------------------------------------------------------------------------------
-    // Handler
+    // Login
     //--------------------------------------------------------------------------------
 
     private static async ValueTask<IResult> HandleLoginAsync(
         LoginRequest request,
         ILoginProvider loginProvider,
-        TokenService tokenService,
+        JwtTokenProvider tokenProvider,
         CancellationToken cancellationToken)
     {
         var account = await loginProvider.AuthenticateAsync(request.Id, request.Password, cancellationToken);
@@ -34,7 +57,7 @@ public static class AuthEndpoints
             return TypedResults.Unauthorized();
         }
 
-        var (token, expireAt) = tokenService.CreateToken(account.Id, account.Roles);
-        return TypedResults.Ok(new LoginResponse(token, expireAt));
+        var (token, expireAt) = tokenProvider.CreateToken(account.Id, account.Roles);
+        return TypedResults.Ok(new LoginResponse { Token = token, ExpireAt = expireAt });
     }
 }

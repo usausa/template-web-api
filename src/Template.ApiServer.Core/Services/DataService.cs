@@ -1,65 +1,55 @@
 namespace Template.ApiServer.Services;
 
 using Template.ApiServer.Accessors;
-using Template.ApiServer.Infrastructure.Data;
 using Template.ApiServer.Models;
 using Template.ApiServer.Models.Entity;
 
 public sealed class DataService
 {
-    // 並べ替えに使える列。SqlHelper.NormalizeSortがこの集合以外を弾く
-    private static readonly string[] SortKeys = ["Name", "Value", "CreatedAt"];
-
-    // 一致しなかったときの並び順。テーブルの主キー
-    private const string DefaultSortColumn = "Id";
-
     private readonly IDialect dialect;
 
     private readonly DataAccessor dataAccessor;
 
-    private readonly TimeProvider timeProvider;
+    private readonly ServiceContextProvider contextProvider;
 
     public DataService(
         IDialect dialect,
         DataAccessor dataAccessor,
-        TimeProvider timeProvider)
+        ServiceContextProvider contextProvider)
     {
         this.dialect = dialect;
         this.dataAccessor = dataAccessor;
-        this.timeProvider = timeProvider;
+        this.contextProvider = contextProvider;
     }
 
-    public void CreateTable() =>
-        dataAccessor.Create();
-
     public ValueTask<int> CountAsync(string? name, CancellationToken cancellationToken = default) =>
-        dataAccessor.CountAsync(name, cancellationToken);
+        dataAccessor.CountAsync(dialect.Match(name), cancellationToken);
 
-    // ページ番号と件数で扱い、総件数と合わせて返す
-    public async ValueTask<PagedResult<DataEntity>> QueryPageAsync(string? name, string? sort, bool desc, int page, int size, CancellationToken cancellationToken = default)
+    public async ValueTask<PagedResult<DataEntity>> QueryPageAsync(string? name, DataSort sort, bool desc, int page, int size, CancellationToken cancellationToken = default)
     {
-        var total = await dataAccessor.CountAsync(name, cancellationToken);
-        var items = await dataAccessor.QueryPageAsync(name, SqlHelper.NormalizeSort(SortKeys, DefaultSortColumn, sort, desc), page * size, size, cancellationToken);
+        var pattern = dialect.Match(name);
+        var total = await dataAccessor.CountAsync(pattern, cancellationToken);
+        var items = await dataAccessor.QueryPageAsync(pattern, sort, desc, size, page * size, cancellationToken);
         return new PagedResult<DataEntity>(total, page, size, items);
     }
 
     public ValueTask<DataEntity?> QueryAsync(long id) =>
         dataAccessor.QueryAsync(id);
 
-    public async ValueTask<long?> InsertAsync(string name, int value)
+    public async ValueTask<DataWriteStatus> InsertAsync(DataEntity entity)
     {
+        var context = contextProvider.Current;
+
         try
         {
-            return await dataAccessor.InsertAsync(name, value, timeProvider.GetLocalNow().DateTime);
+            entity.CreatedAt = context.Now.DateTime;
+            entity.Version = 1;
+            entity.Id = await dataAccessor.InsertAsync(entity.Name, entity.Value, entity.CreatedAt);
+            return DataWriteStatus.Success;
         }
-        catch (DbException ex)
+        catch (DbException ex) when (dialect.IsDuplicate(ex))
         {
-            if (dialect.IsDuplicate(ex))
-            {
-                return null;
-            }
-
-            throw;
+            return DataWriteStatus.Duplicate;
         }
     }
 
@@ -78,20 +68,19 @@ public sealed class DataService
             var exists = version.HasValue && await dataAccessor.QueryAsync(id) is not null;
             return new DataUpdateResult(exists ? DataWriteStatus.VersionMismatch : DataWriteStatus.NotFound, 0);
         }
-        catch (DbException ex)
+        catch (DbException ex) when (dialect.IsDuplicate(ex))
         {
-            if (dialect.IsDuplicate(ex))
-            {
-                return new DataUpdateResult(DataWriteStatus.Duplicate, 0);
-            }
-
-            throw;
+            return new DataUpdateResult(DataWriteStatus.Duplicate, 0);
         }
     }
 
-    public async ValueTask<bool> DeleteAsync(long id)
+    public async ValueTask<DataWriteStatus> DeleteAsync(long id)
     {
-        var rows = await dataAccessor.DeleteAsync(id);
-        return rows > 0;
+        if (await dataAccessor.DeleteAsync(id) > 0)
+        {
+            return DataWriteStatus.Success;
+        }
+
+        return DataWriteStatus.NotFound;
     }
 }

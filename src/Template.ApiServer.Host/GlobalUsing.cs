@@ -42,6 +42,7 @@ global using Smart.Text;
 global using Template.ApiServer;
 global using Template.ApiServer.Models;
 global using Template.ApiServer.Models.Entity;
+global using Template.ApiServer.Models.Parameters;
 global using Template.ApiServer.Services;
 global using Template.ApiServer.Host.Application;
 global using Template.ApiServer.Host.Settings;

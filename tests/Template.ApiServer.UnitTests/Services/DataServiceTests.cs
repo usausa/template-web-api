@@ -6,6 +6,7 @@ using Smart.Data;
 using Smart.Mock.Data;
 
 using Template.ApiServer.Accessors;
+using Template.ApiServer.Host.Application.Context;
 using Template.ApiServer.Models.Entity;
 
 public sealed class DataServiceTests
@@ -82,6 +83,8 @@ public sealed class DataServiceTests
         services.AddSingleton<IDbProvider>(new DelegateDbProvider(() => con));
         services.AddSingleton<IDialect>(new DelegateDialect(static _ => false, static x => x));
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<ApplicationServiceContextProvider>();
+        services.AddSingleton<ServiceContextProvider>(static p => p.GetRequiredService<ApplicationServiceContextProvider>());
         services.AddDataAccessors(typeof(DataAccessor).Assembly);
         services.AddSingleton<DataService>();
         return services.BuildServiceProvider();

@@ -4,7 +4,7 @@ using System.IO.Compression;
 using System.Net.Http.Headers;
 using System.Text.Json;
 
-using Template.ApiServer.Host.Models.Auth;
+using Template.ApiServer.Host.Endpoints;
 
 public sealed class CompressionTests : IClassFixture<TestApplicationFactory>
 {
@@ -39,7 +39,7 @@ public sealed class CompressionTests : IClassFixture<TestApplicationFactory>
         using var body = new MemoryStream();
         await using (var gzip = new GZipStream(body, CompressionMode.Compress, leaveOpen: true))
         {
-            await JsonSerializer.SerializeAsync(gzip, new LoginRequest("test", "test"), JsonSerializerOptions.Web, TestContext.Current.CancellationToken);
+            await JsonSerializer.SerializeAsync(gzip, new LoginRequest { Id = "test", Password = "test" }, JsonSerializerOptions.Web, TestContext.Current.CancellationToken);
         }
 
         using var content = new ByteArrayContent(body.ToArray());

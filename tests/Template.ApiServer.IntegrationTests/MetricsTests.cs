@@ -4,7 +4,7 @@ using System.Diagnostics.Metrics;
 using System.Net.Http.Headers;
 
 using Template.ApiServer.Host.Application.Telemetry;
-using Template.ApiServer.Host.Models.Auth;
+using Template.ApiServer.Host.Endpoints;
 
 public sealed class MetricsTests : IClassFixture<TestApplicationFactory>
 {
@@ -33,7 +33,7 @@ public sealed class MetricsTests : IClassFixture<TestApplicationFactory>
         listener.Start();
 
         var client = factory.CreateClient();
-        var login = await client.PostAsJsonAsync(new Uri("/api/v1/auth/login", UriKind.Relative), new LoginRequest("test", "test"), TestContext.Current.CancellationToken);
+        var login = await client.PostAsJsonAsync(new Uri("/api/v1/auth/login", UriKind.Relative), new LoginRequest { Id = "test", Password = "test" }, TestContext.Current.CancellationToken);
         var token = (await login.Content.ReadFromJsonAsync<LoginResponse>(TestContext.Current.CancellationToken))!.Token;
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
