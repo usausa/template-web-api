@@ -20,6 +20,21 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
 
     public ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
+        if (exception is BadHttpRequestException badRequest)
+        {
+            httpContext.Response.StatusCode = badRequest.StatusCode;
+
+            return problemDetailsService.TryWriteAsync(new ProblemDetailsContext
+            {
+                HttpContext = httpContext,
+                Exception = exception,
+                ProblemDetails = new ProblemDetails
+                {
+                    Status = badRequest.StatusCode
+                }
+            });
+        }
+
         logger.ErrorUnhandledException(exception);
 
         httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;

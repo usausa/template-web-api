@@ -1,5 +1,7 @@
 namespace Template.ApiServer;
 
+using System.Text.Json.Nodes;
+
 public sealed class HostTests : IClassFixture<TestApplicationFactory>
 {
     private readonly TestApplicationFactory factory;
@@ -74,6 +76,23 @@ public sealed class HostTests : IClassFixture<TestApplicationFactory>
         // Assert
         Assert.Contains("\"/api/v1/data\"", document, StringComparison.Ordinal);
         Assert.DoesNotContain("apiVersion", document, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task OpenApiDocumentDescribesResponses()
+    {
+        // Arrange
+        var client = factory.CreateClient();
+
+        // Act
+        var document = JsonNode.Parse(await client.GetStringAsync(new Uri("/openapi/v1.json", UriKind.Relative), TestContext.Current.CancellationToken))!;
+        var operation = document["paths"]!["/api/v1/data/{id}"]!["get"]!;
+
+        // Assert
+        Assert.Equal("GetData", (string?)operation["operationId"]);
+        Assert.Equal("#/components/schemas/DataResponse", (string?)operation["responses"]!["200"]!["content"]!["application/json"]!["schema"]!["$ref"]);
+        Assert.NotNull(operation["responses"]!["404"]!["content"]!["application/problem+json"]);
+        Assert.Equal("integer", (string?)document["components"]!["schemas"]!["DataResponse"]!["properties"]!["value"]!["type"]);
     }
 
     [Fact]

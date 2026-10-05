@@ -40,10 +40,17 @@ public static class TestEndpoints
     {
         var group = app.MapApiGroup(ApiRoutes.Test);
 
-        group.MapGet("/time", HandleTime);
-        group.MapGet("/feature", HandleFeatureAsync);
-        group.MapGet("/error", HandleError);
-        group.MapGet("/me", HandleMe).RequireAuthorization();
+        group.MapGet("/time", HandleTime)
+            .WithName("GetTime");
+        group.MapGet("/feature", HandleFeatureAsync)
+            .WithName("GetFeature");
+        group.MapGet("/error", HandleError)
+            .WithName("GetError");
+        group.MapGet("/me", HandleMe)
+            .RequireAuthorization()
+            .WithName("GetMe")
+            .Produces<MeResponse>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
     }
 
     //--------------------------------------------------------------------------------

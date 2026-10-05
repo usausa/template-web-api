@@ -97,13 +97,35 @@ public static class DataEndpoints
     public static void MapDataEndpoints(this WebApplication app)
     {
         var group = app.MapApiGroup(ApiRoutes.Data)
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
-        group.MapGet("/", HandleListAsync);
-        group.MapGet("/{id:long}", HandleGetAsync);
-        group.MapPost("/", HandleCreateAsync);
-        group.MapPut("/{id:long}", HandleUpdateAsync);
-        group.MapDelete("/{id:long}", HandleDeleteAsync).RequireAuthorization(Policies.Administrator);
+        group.MapGet("/", HandleListAsync)
+            .WithName("ListData")
+            .Produces<DataListResponse>()
+            .ProducesValidationProblem();
+        group.MapGet("/{id:long}", HandleGetAsync)
+            .WithName("GetData")
+            .Produces<DataResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPost("/", HandleCreateAsync)
+            .WithName("CreateData")
+            .Produces<DataCreateResponse>(StatusCodes.Status201Created)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        group.MapPut("/{id:long}", HandleUpdateAsync)
+            .WithName("UpdateData")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status412PreconditionFailed);
+        group.MapDelete("/{id:long}", HandleDeleteAsync)
+            .RequireAuthorization(Policies.Administrator)
+            .WithName("DeleteData")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     //--------------------------------------------------------------------------------

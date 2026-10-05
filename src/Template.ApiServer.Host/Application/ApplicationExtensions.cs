@@ -216,6 +216,9 @@ public static class ApplicationExtensions
             options.SerializerOptions.DictionaryKeyPolicy = NamingPolicy.JsonDictionaryKeyNaming;
             options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
             options.SerializerOptions.Encoder = JavaScriptEncoder.Create(UnicodeRanges.All);
+            options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+            options.SerializerOptions.AllowDuplicateProperties = false;
+            options.SerializerOptions.UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow;
         });
 
         // Validation

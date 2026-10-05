@@ -38,7 +38,12 @@ public static class AuthEndpoints
         var group = app.MapApiGroup(ApiRoutes.Auth)
             .RequireRateLimiting(RateLimitPolicies.Auth);
 
-        group.MapPost("/login", HandleLoginAsync).AllowAnonymous();
+        group.MapPost("/login", HandleLoginAsync)
+            .AllowAnonymous()
+            .WithName("Login")
+            .Produces<LoginResponse>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
     }
 
     //--------------------------------------------------------------------------------
