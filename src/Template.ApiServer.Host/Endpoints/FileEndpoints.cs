@@ -57,21 +57,21 @@ public static class FileEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
         group.MapGet("/list/{**path}", HandleListAsync)
-            .WithName("ListFiles")
+            .WithName("FileList")
             .Produces<FileListResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound);
         group.MapGet("/download/{**path}", HandleDownloadAsync)
-            .WithName("DownloadFile")
+            .WithName("FileDownload")
             .Produces<Stream>(StatusCodes.Status200OK, "application/octet-stream")
             .ProducesProblem(StatusCodes.Status404NotFound);
         group.MapPost("/upload/{**path}", HandleUploadAsync)
             .DisableAntiforgery()
-            .WithName("UploadFiles")
+            .WithName("FileUpload")
             .Produces<FileUploadResponse>()
             .WithRequestTimeout(TimeSpan.FromMinutes(10));
         group.MapDelete("/{**path}", HandleDeleteAsync)
             .RequireAuthorization(Policies.Administrator)
-            .WithName("DeleteFile")
+            .WithName("FileDelete")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);

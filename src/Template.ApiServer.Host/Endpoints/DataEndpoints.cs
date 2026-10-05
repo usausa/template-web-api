@@ -33,7 +33,7 @@ public sealed class DataListResponse
     public IReadOnlyList<DataListEntry> Items { get; set; } = default!;
 }
 
-public sealed class DataResponse
+public sealed class DataGetResponse
 {
     public long Id { get; set; }
 
@@ -81,7 +81,7 @@ public static partial class DataMapper
     public static partial DataListEntry ToListEntry(this DataEntity entity);
 
     [Mapper]
-    public static partial DataResponse ToResponse(this DataEntity entity);
+    public static partial DataGetResponse ToGetResponse(this DataEntity entity);
 }
 
 //--------------------------------------------------------------------------------
@@ -101,20 +101,20 @@ public static class DataEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         group.MapGet("/", HandleListAsync)
-            .WithName("ListData")
+            .WithName("DataList")
             .Produces<DataListResponse>()
             .ProducesValidationProblem();
         group.MapGet("/{id:long}", HandleGetAsync)
-            .WithName("GetData")
-            .Produces<DataResponse>()
+            .WithName("DataGet")
+            .Produces<DataGetResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound);
         group.MapPost("/", HandleCreateAsync)
-            .WithName("CreateData")
+            .WithName("DataCreate")
             .Produces<DataCreateResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict);
         group.MapPut("/{id:long}", HandleUpdateAsync)
-            .WithName("UpdateData")
+            .WithName("DataUpdate")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -122,7 +122,7 @@ public static class DataEndpoints
             .ProducesProblem(StatusCodes.Status412PreconditionFailed);
         group.MapDelete("/{id:long}", HandleDeleteAsync)
             .RequireAuthorization(Policies.Administrator)
-            .WithName("DeleteData")
+            .WithName("DataDelete")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
@@ -167,7 +167,7 @@ public static class DataEndpoints
         }
 
         response.Headers.ETag = EntityTag.From(entity.Version);
-        return TypedResults.Ok(entity.ToResponse());
+        return TypedResults.Ok(entity.ToGetResponse());
     }
 
     //--------------------------------------------------------------------------------

@@ -7,7 +7,7 @@ using Template.ApiServer.Host.Application.Authentication;
 // Models
 //--------------------------------------------------------------------------------
 
-public sealed class LoginRequest
+public sealed class AuthLoginRequest
 {
     [Required]
     public string Id { get; set; } = default!;
@@ -16,7 +16,7 @@ public sealed class LoginRequest
     public string Password { get; set; } = default!;
 }
 
-public sealed class LoginResponse
+public sealed class AuthLoginResponse
 {
     public string Token { get; set; } = default!;
 
@@ -40,8 +40,8 @@ public static class AuthEndpoints
 
         group.MapPost("/login", HandleLoginAsync)
             .AllowAnonymous()
-            .WithName("Login")
-            .Produces<LoginResponse>()
+            .WithName("AuthLogin")
+            .Produces<AuthLoginResponse>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
     }
@@ -51,7 +51,7 @@ public static class AuthEndpoints
     //--------------------------------------------------------------------------------
 
     private static async ValueTask<IResult> HandleLoginAsync(
-        LoginRequest request,
+        AuthLoginRequest request,
         ILoginProvider loginProvider,
         JwtTokenProvider tokenProvider,
         CancellationToken cancellationToken)
@@ -63,6 +63,6 @@ public static class AuthEndpoints
         }
 
         var (token, expireAt) = tokenProvider.CreateToken(account.Id, account.Roles);
-        return TypedResults.Ok(new LoginResponse { Token = token, ExpireAt = expireAt });
+        return TypedResults.Ok(new AuthLoginResponse { Token = token, ExpireAt = expireAt });
     }
 }

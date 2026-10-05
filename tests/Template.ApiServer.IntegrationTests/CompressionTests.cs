@@ -39,7 +39,7 @@ public sealed class CompressionTests : IClassFixture<TestApplicationFactory>
         using var body = new MemoryStream();
         await using (var gzip = new GZipStream(body, CompressionMode.Compress, leaveOpen: true))
         {
-            await JsonSerializer.SerializeAsync(gzip, new LoginRequest { Id = "test", Password = "test" }, JsonSerializerOptions.Web, TestContext.Current.CancellationToken);
+            await JsonSerializer.SerializeAsync(gzip, new AuthLoginRequest { Id = "test", Password = "test" }, JsonSerializerOptions.Web, TestContext.Current.CancellationToken);
         }
 
         using var content = new ByteArrayContent(body.ToArray());
@@ -51,6 +51,6 @@ public sealed class CompressionTests : IClassFixture<TestApplicationFactory>
 
         // Assert
         response.EnsureSuccessStatusCode();
-        Assert.NotNull(await response.Content.ReadFromJsonAsync<LoginResponse>(TestContext.Current.CancellationToken));
+        Assert.NotNull(await response.Content.ReadFromJsonAsync<AuthLoginResponse>(TestContext.Current.CancellationToken));
     }
 }

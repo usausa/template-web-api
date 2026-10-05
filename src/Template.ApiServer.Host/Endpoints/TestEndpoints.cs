@@ -9,17 +9,17 @@ using Template.ApiServer.Host.Application.Context;
 // Models
 //--------------------------------------------------------------------------------
 
-public sealed class TimeResponse
+public sealed class TestTimeResponse
 {
     public DateTimeOffset Time { get; set; }
 }
 
-public sealed class FeatureResponse
+public sealed class TestFeatureResponse
 {
     public bool Enabled { get; set; }
 }
 
-public sealed class MeResponse
+public sealed class TestMeResponse
 {
     public string Id { get; set; } = default!;
 
@@ -41,15 +41,15 @@ public static class TestEndpoints
         var group = app.MapApiGroup(ApiRoutes.Test);
 
         group.MapGet("/time", HandleTime)
-            .WithName("GetTime");
+            .WithName("TestTime");
         group.MapGet("/feature", HandleFeatureAsync)
-            .WithName("GetFeature");
+            .WithName("TestFeature");
         group.MapGet("/error", HandleError)
-            .WithName("GetError");
+            .WithName("TestError");
         group.MapGet("/me", HandleMe)
             .RequireAuthorization()
-            .WithName("GetMe")
-            .Produces<MeResponse>()
+            .WithName("TestMe")
+            .Produces<TestMeResponse>()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
     }
 
@@ -57,15 +57,15 @@ public static class TestEndpoints
     // Time
     //--------------------------------------------------------------------------------
 
-    private static Ok<TimeResponse> HandleTime(TimeProvider timeProvider) =>
-        TypedResults.Ok(new TimeResponse { Time = timeProvider.GetLocalNow() });
+    private static Ok<TestTimeResponse> HandleTime(TimeProvider timeProvider) =>
+        TypedResults.Ok(new TestTimeResponse { Time = timeProvider.GetLocalNow() });
 
     //--------------------------------------------------------------------------------
     // Feature
     //--------------------------------------------------------------------------------
 
-    private static async ValueTask<Ok<FeatureResponse>> HandleFeatureAsync(IFeatureManager featureManager) =>
-        TypedResults.Ok(new FeatureResponse { Enabled = await featureManager.IsEnabledAsync(FeatureFlags.CustomOption) });
+    private static async ValueTask<Ok<TestFeatureResponse>> HandleFeatureAsync(IFeatureManager featureManager) =>
+        TypedResults.Ok(new TestFeatureResponse { Enabled = await featureManager.IsEnabledAsync(FeatureFlags.CustomOption) });
 
     //--------------------------------------------------------------------------------
     // Error
@@ -86,7 +86,7 @@ public static class TestEndpoints
             return TypedResults.Unauthorized();
         }
 
-        return TypedResults.Ok(new MeResponse
+        return TypedResults.Ok(new TestMeResponse
         {
             Id = HttpServiceContext.GetUserId(user),
             Roles = user.FindAll(identity.RoleClaimType).Select(static x => x.Value).ToArray()

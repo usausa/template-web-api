@@ -89,10 +89,10 @@ public sealed class HostTests : IClassFixture<TestApplicationFactory>
         var operation = document["paths"]!["/api/v1/data/{id}"]!["get"]!;
 
         // Assert
-        Assert.Equal("GetData", (string?)operation["operationId"]);
-        Assert.Equal("#/components/schemas/DataResponse", (string?)operation["responses"]!["200"]!["content"]!["application/json"]!["schema"]!["$ref"]);
+        Assert.Equal("DataGet", (string?)operation["operationId"]);
+        Assert.Equal("#/components/schemas/DataGetResponse", (string?)operation["responses"]!["200"]!["content"]!["application/json"]!["schema"]!["$ref"]);
         Assert.NotNull(operation["responses"]!["404"]!["content"]!["application/problem+json"]);
-        Assert.Equal("integer", (string?)document["components"]!["schemas"]!["DataResponse"]!["properties"]!["value"]!["type"]);
+        Assert.Equal("integer", (string?)document["components"]!["schemas"]!["DataGetResponse"]!["properties"]!["value"]!["type"]);
     }
 
     [Fact]
