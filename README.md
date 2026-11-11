@@ -19,7 +19,7 @@ ASP.NET Core Minimal API template (.NET 10).
 
 | Project | Description |
 | --- | --- |
-| [template-web-fullstack](https://github.com/usausa/template-web-fullstack) | Full-stack template based on template-web-api |
+| [template-web-fullstack](https://github.com/usausa/template-web-fullstack) | Full-stack template |
 | [template-web-mvc](https://github.com/usausa/template-web-mvc) | ASP.NET Core MVC template with Identity and passkeys |
 | [template-blazor-server](https://github.com/usausa/template-blazor-server) | Blazor Server application template |
 | [template-blazor-wasm](https://github.com/usausa/template-blazor-wasm) | Blazor WebAssembly + ASP.NET Core API template |
@@ -32,5 +32,5 @@ ASP.NET Core Minimal API template (.NET 10).
 | [Usa.Smart.Data.Accessor](https://github.com/usausa/Smart-Net-Data-Accessor) | Source generator based data accessor |
 | [Usa.Smart.Mapper](https://github.com/usausa/Smart-Net-Mapper) | Object mapper |
 | [MiniDataProfiler](https://github.com/usausa/mini-data-profiler) | SQL profiler |
-| [BunnyTail.CommonCode](https://github.com/usausa/bunnytail-common-code) | Common code generator (ToString, etc.) |
+| [BunnyTail.CommonCode](https://github.com/usausa/bunnytail-common-code) | Common code generator |
 | [BunnyTail.ServiceRegistration](https://github.com/usausa/bunnytail-service-registration) | Service registration generator |
