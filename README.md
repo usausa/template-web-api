@@ -2,7 +2,7 @@
 
 English | [日本語](README.ja.md)
 
-ASP.NET Core Minimal API template (.NET 10).
+[Template](https://usausa.github.io/template/) project for Web API.
 
 # ✅ Implement
 
