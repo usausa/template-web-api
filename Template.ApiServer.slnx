@@ -14,6 +14,7 @@
     <File Path=".editorconfig" />
     <File Path=".gitattributes" />
     <File Path=".gitignore" />
+    <File Path="AGENTS.md" />
     <File Path="Analyzers.ruleset" />
     <File Path="CodeCoverage.runsettings" />
     <File Path="Directory.Build.props" />
