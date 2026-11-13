@@ -9,11 +9,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Transitive pin: GHSA-qhrr-8q5h-9q3h -->
-    <PackageReference Include="MessagePack" Version="3.1.12" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Template.ApiServer.Host\Template.ApiServer.Host.csproj" />
   </ItemGroup>
 
