@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="BunnyTail.MemberAccessor" Version="2.0.0" />
     <PackageReference Include="BunnyTail.ServiceRegistration" Version="2.0.0" />
     <PackageReference Include="Usa.Smart.Core" Version="3.0.0" />
     <PackageReference Include="Usa.Smart.Data.Accessor" Version="3.0.0" />

@@ -6,7 +6,7 @@
 
 | Category | Feature |
 | --- | --- |
-| API | Minimal API / Versioning (`/api/v1`) / OpenAPI (Swagger UI, ReDoc) / Validation / ProblemDetails |
+| API | Minimal API / Versioning (`/api/v1`) / OpenAPI (Swagger UI, ReDoc) / Validation (Shift_JIS byte length, character type, conditional and cross-property attributes) / ProblemDetails |
 | Auth | JWT / API key / Role policy |
 | Data | SQLite (Smart.Data.Accessor) / Paging, sorting, and search / Optimistic concurrency (ETag) / File storage |
 | HTTP | Rate limiting / Compression (Brotli, Gzip) / Security headers / Forwarded headers |

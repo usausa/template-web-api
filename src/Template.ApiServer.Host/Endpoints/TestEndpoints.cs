@@ -1,9 +1,12 @@
 namespace Template.ApiServer.Host.Endpoints;
 
+using BunnyTail.MemberAccessor;
+
 using Microsoft.FeatureManagement;
 
 using Template.ApiServer.Host.Application;
 using Template.ApiServer.Host.Application.Context;
+using Template.ApiServer.Infrastructure.Validation;
 
 //--------------------------------------------------------------------------------
 // Models
@@ -24,6 +27,43 @@ public sealed class TestMeResponse
     public string Id { get; set; } = default!;
 
     public IReadOnlyList<string> Roles { get; set; } = default!;
+}
+
+[GenerateAccessor]
+[AnyRequired(nameof(Phone), nameof(Mail))]
+public sealed class TestValidationRequest
+{
+    [Ms932Length(20)]
+    [CharacterType(CharacterType.FullWidth)]
+    public string? Name { get; set; }
+
+    [CharacterType(CharacterType.NumericHyphen)]
+    public string? Phone { get; set; }
+
+    [EmailAddress]
+    public string? Mail { get; set; }
+
+    public bool UsePeriod { get; set; }
+
+    [RequiredWhen(nameof(UsePeriod))]
+    public DateOnly? From { get; set; }
+
+    [RequiredWhen(nameof(UsePeriod))]
+    [CompareTo(CompareToOperation.GreaterThanOrEqual, nameof(From))]
+    public DateOnly? To { get; set; }
+
+    [ElementRequired]
+    [MaxCount(10)]
+    [DuplicateKey(nameof(TestValidationEntry.Code))]
+    public IReadOnlyList<TestValidationEntry> Entries { get; set; } = default!;
+}
+
+[GenerateAccessor]
+public sealed class TestValidationEntry
+{
+    [Required]
+    [CharacterType(CharacterType.UpperAlphanumeric)]
+    public string Code { get; set; } = default!;
 }
 
 //--------------------------------------------------------------------------------
@@ -51,6 +91,9 @@ public static class TestEndpoints
             .WithName("TestMe")
             .Produces<TestMeResponse>()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
+        group.MapPost("/validation", HandleValidation)
+            .WithName("TestValidation")
+            .ProducesValidationProblem();
     }
 
     //--------------------------------------------------------------------------------
@@ -92,4 +135,11 @@ public static class TestEndpoints
             Roles = user.FindAll(identity.RoleClaimType).Select(static x => x.Value).ToArray()
         });
     }
+
+    //--------------------------------------------------------------------------------
+    // Validation
+    //--------------------------------------------------------------------------------
+
+    private static Ok<TestValidationRequest> HandleValidation(TestValidationRequest request) =>
+        TypedResults.Ok(request);
 }
