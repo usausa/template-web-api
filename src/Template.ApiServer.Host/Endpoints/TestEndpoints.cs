@@ -1,12 +1,11 @@
 namespace Template.ApiServer.Host.Endpoints;
 
-using BunnyTail.MemberAccessor;
-
 using Microsoft.FeatureManagement;
+
+using Smart.ComponentModel.DataAnnotations;
 
 using Template.ApiServer.Host.Application;
 using Template.ApiServer.Host.Application.Context;
-using Template.ApiServer.Infrastructure.Validation;
 
 //--------------------------------------------------------------------------------
 // Models
@@ -29,15 +28,14 @@ public sealed class TestMeResponse
     public IReadOnlyList<string> Roles { get; set; } = default!;
 }
 
-[GenerateAccessor]
 [AnyRequired(nameof(Phone), nameof(Mail))]
 public sealed class TestValidationRequest
 {
-    [Ms932Length(20)]
-    [CharacterType(CharacterType.FullWidth)]
+    [Ms932MaxLength(20)]
+    [FullWidth]
     public string? Name { get; set; }
 
-    [CharacterType(CharacterType.NumericHyphen)]
+    [NumericHyphen]
     public string? Phone { get; set; }
 
     [EmailAddress]
@@ -58,11 +56,10 @@ public sealed class TestValidationRequest
     public IReadOnlyList<TestValidationEntry> Entries { get; set; } = default!;
 }
 
-[GenerateAccessor]
 public sealed class TestValidationEntry
 {
     [Required]
-    [CharacterType(CharacterType.UpperAlphanumeric)]
+    [UpperAlphanumeric]
     public string Code { get; set; } = default!;
 }
 
