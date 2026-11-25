@@ -96,6 +96,19 @@ public sealed class HostTests : IClassFixture<TestApplicationFactory>
     }
 
     [Fact]
+    public async Task OpenApiDocumentUsesOpenApi31()
+    {
+        // Arrange
+        var client = factory.CreateClient();
+
+        // Act
+        var document = JsonNode.Parse(await client.GetStringAsync(new Uri("/openapi/v1.json", UriKind.Relative), TestContext.Current.CancellationToken))!;
+
+        // Assert
+        Assert.StartsWith("3.1.", (string?)document["openapi"], StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ApiWithoutAuthReturnsUnauthorized()
     {
         // Arrange

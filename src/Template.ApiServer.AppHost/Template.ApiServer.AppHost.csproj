@@ -1,14 +1,14 @@
-﻿<Project Sdk="Aspire.AppHost.Sdk/13.6.5">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net11.0</TargetFramework>
-    <AspireUseCliBundle>true</AspireUseCliBundle>
     <UserSecretsId>61a7b799-0c15-4961-a256-98098694b10f</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Template.ApiServer.Host\Template.ApiServer.Host.csproj" />
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="17.0.0" />
+    <PackageReference Include="Aspire.Hosting.Dotnet" Version="17.0.0" />
   </ItemGroup>
 
 </Project>

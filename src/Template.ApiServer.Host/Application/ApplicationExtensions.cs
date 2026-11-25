@@ -238,6 +238,7 @@ public static class ApplicationExtensions
             })
             .AddOpenApi(static options =>
             {
+                options.Document.OpenApiVersion = Microsoft.OpenApi.OpenApiSpecVersion.OpenApi3_1;
                 options.Document.AddDocumentTransformer(static (document, _, _) =>
                 {
                     document.Info.Title = "Template API";
